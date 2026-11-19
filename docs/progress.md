@@ -1,15 +1,15 @@
+# Progress
+
 Day 31 - Completed:
-- Defined problem statement (financial risk management)
-- Chose project type: chatbot with recommender
-- Drafted architecture diagram
-- Selected tech stack (FastAPI, Groq LLM, FAISS, Streamlit, Azure)
-- Documented team roles (individual project)
-- Setup GitHub repo and documentation structure
+- Problem statement, user roles, MVP, user stories and acceptance criteria
+- Architecture diagram and technology decisions
+- Individual team roles
+- GitHub repository, README and .gitignore
 
 Day 32 - Completed:
-- Setup FastAPI backend
-- Integrated Groq LLM API (OpenAI GPT-OSS model)
-- Setup FAISS vector DB
-- Implemented embedding (TF-IDF) and retrieval logic
-- Tested /health, /analyze and /similar endpoints
-this one where i am supposed to paste
+- SQLite schema (items, audit_log) with SQLAlchemy
+- CRUD endpoints under /items with role checks and audit log
+- Deterministic scoring: probability x impact with priority bands
+- AI suggestion endpoint (/suggest) using Groq, marked as suggestions
+- Sample register with 30 records
+- Tested GET /items, GET /dashboard/summary and POST /items
