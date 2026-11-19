@@ -1,11 +1,23 @@
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from collections import Counter
+from typing import Optional
 
-from app.services.llm_service import analyze_risk
+from fastapi import Depends, FastAPI, Header, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from sqlalchemy.orm import Session
+
+from app import models, schemas
+from app.database import Base, SessionLocal, engine, get_db
+from app.models import utcnow
+from app.scoring import calculate_score, get_priority, is_overdue
+from app.seed import seed_if_empty
+from app.services.llm_service import suggest_text
 from app.services.vector_service import search_similar
 
-app = FastAPI(title="RiskPilot: Financial Risk & Issue Triage and Mitigation Assistant")
+Base.metadata.create_all(bind=engine)
+with SessionLocal() as _db:
+    seed_if_empty(_db)
+
+app = FastAPI(title="RiskPilot: Project Risk & Issue Triage and Mitigation Assistant")
 
 app.add_middleware(
     CORSMiddleware,
@@ -18,9 +30,40 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+ALL_STATUSES = {"Open", "In Progress", "Pending Review", "Closed"}
+STATUS_RIGHTS = {
+    "Project Manager": ALL_STATUSES,
+    "Programme Lead": ALL_STATUSES,
+    "Risk Owner": {"In Progress", "Pending Review"},
+}
 
-class RiskInput(BaseModel):
-    description: str
+
+def check_role(role: str) -> str:
+    if role not in STATUS_RIGHTS:
+        raise HTTPException(
+            status_code=400,
+            detail="X-Role must be Project Manager, Risk Owner or Programme Lead",
+        )
+    return role
+
+
+def write_log(db: Session, item_id: int, action: str, role: str, details: str):
+    db.add(models.AuditLog(
+        item_id=item_id, action=action, changed_by=role, details=details
+    ))
+
+
+def get_item_or_404(db: Session, item_id: int) -> models.Item:
+    item = db.get(models.Item, item_id)
+    if item is None:
+        raise HTTPException(status_code=404, detail="Record not found")
+    return item
+
+
+def to_out(item: models.Item) -> schemas.ItemOut:
+    out = schemas.ItemOut.model_validate(item)
+    out.overdue = is_overdue(item.due_date, item.status)
+    return out
 
 
 @app.get("/health")
@@ -28,19 +71,168 @@ def health():
     return {"status": "ok"}
 
 
-@app.post("/analyze")
-def analyze(data: RiskInput):
+@app.post("/items", response_model=schemas.ItemOut, status_code=201)
+def create_item(
+    data: schemas.ItemCreate,
+    db: Session = Depends(get_db),
+    x_role: str = Header("Project Manager", alias="X-Role"),
+):
+    role = check_role(x_role)
+    if role != "Project Manager":
+        raise HTTPException(status_code=403, detail="Only a Project Manager can create records")
+    score = calculate_score(data.probability, data.impact)
+    item = models.Item(
+        **data.model_dump(),
+        score=score,
+        priority=get_priority(score),
+        status="Open",
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    write_log(db, item.id, "created", role, f"Created {item.item_type}: {item.title}")
+    db.commit()
+    return to_out(item)
+
+
+@app.get("/items", response_model=list[schemas.ItemOut])
+def list_items(
+    status: Optional[str] = None,
+    priority: Optional[str] = None,
+    owner: Optional[str] = None,
+    category: Optional[str] = None,
+    overdue: Optional[bool] = None,
+    db: Session = Depends(get_db),
+):
+    query = db.query(models.Item)
+    if status:
+        query = query.filter(models.Item.status == status)
+    if priority:
+        query = query.filter(models.Item.priority == priority)
+    if category:
+        query = query.filter(models.Item.category == category)
+    if owner:
+        query = query.filter(models.Item.owner.ilike(f"%{owner}%"))
+    items = query.order_by(models.Item.score.desc(), models.Item.due_date).all()
+    result = [to_out(i) for i in items]
+    if overdue is not None:
+        result = [r for r in result if r.overdue == overdue]
+    return result
+
+
+@app.get("/items/{item_id}", response_model=schemas.ItemOut)
+def get_item(item_id: int, db: Session = Depends(get_db)):
+    return to_out(get_item_or_404(db, item_id))
+
+
+@app.put("/items/{item_id}", response_model=schemas.ItemOut)
+def update_item(
+    item_id: int,
+    data: schemas.ItemUpdate,
+    db: Session = Depends(get_db),
+    x_role: str = Header("Project Manager", alias="X-Role"),
+):
+    role = check_role(x_role)
+    if role not in ("Project Manager", "Risk Owner"):
+        raise HTTPException(status_code=403, detail="Your role cannot edit records")
+    item = get_item_or_404(db, item_id)
+    if item.status == "Closed":
+        raise HTTPException(status_code=400, detail="Closed records cannot be edited")
+
+    details = []
+    for field, value in data.model_dump(exclude_unset=True).items():
+        old = getattr(item, field)
+        if value is not None and old != value:
+            setattr(item, field, value)
+            details.append(f"{field}: {old} -> {value}")
+
+    item.score = calculate_score(item.probability, item.impact)
+    item.priority = get_priority(item.score)
+    item.updated_at = utcnow()
+    write_log(db, item.id, "updated", role, "; ".join(details) or "No changes")
+    db.commit()
+    db.refresh(item)
+    return to_out(item)
+
+
+@app.patch("/items/{item_id}/status", response_model=schemas.ItemOut)
+def change_status(
+    item_id: int,
+    data: schemas.StatusChange,
+    db: Session = Depends(get_db),
+    x_role: str = Header("Project Manager", alias="X-Role"),
+):
+    role = check_role(x_role)
+    if data.status not in STATUS_RIGHTS[role]:
+        raise HTTPException(
+            status_code=403,
+            detail=f"{role} cannot set the status to {data.status}",
+        )
+    item = get_item_or_404(db, item_id)
+    old_status = item.status
+    item.status = data.status
+    item.updated_at = utcnow()
+    if data.note:
+        prefix = (item.review_notes + "\n") if item.review_notes else ""
+        item.review_notes = f"{prefix}[{role}] {data.note}"
+    write_log(
+        db, item.id, "status_change", role,
+        f"{old_status} -> {data.status}. Note: {data.note or '-'}",
+    )
+    db.commit()
+    db.refresh(item)
+    return to_out(item)
+
+
+@app.get("/items/{item_id}/audit")
+def get_audit(item_id: int, db: Session = Depends(get_db)):
+    get_item_or_404(db, item_id)
+    logs = (
+        db.query(models.AuditLog)
+        .filter(models.AuditLog.item_id == item_id)
+        .order_by(models.AuditLog.id)
+        .all()
+    )
+    return [
+        {
+            "action": log.action,
+            "changed_by": log.changed_by,
+            "details": log.details,
+            "timestamp": log.timestamp,
+        }
+        for log in logs
+    ]
+
+
+@app.get("/dashboard/summary")
+def dashboard_summary(db: Session = Depends(get_db)):
+    items = db.query(models.Item).all()
+    open_items = [i for i in items if i.status != "Closed"]
+    return {
+        "total": len(items),
+        "open": len(open_items),
+        "overdue": sum(1 for i in items if is_overdue(i.due_date, i.status)),
+        "high_priority": sum(1 for i in open_items if i.priority in ("High", "Critical")),
+        "by_status": dict(Counter(i.status for i in items)),
+        "by_priority": dict(Counter(i.priority for i in items)),
+    }
+
+
+@app.post("/suggest")
+def suggest(data: schemas.SuggestRequest):
     try:
-        similar_risks = search_similar(data.description)
-        result = analyze_risk(data.description, similar_risks)
-        result["similar_risks"] = similar_risks
-        return result
+        result = suggest_text(data.title, data.description, data.category)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}")
+    return {
+        "suggestion": True,
+        "note": "AI-generated suggestion. A human must review it before saving.",
+        "result": result,
+    }
 
 
 @app.post("/similar")
-def similar(data: RiskInput):
+def similar(data: schemas.SuggestRequest):
     try:
         return search_similar(data.description)
     except Exception as e:

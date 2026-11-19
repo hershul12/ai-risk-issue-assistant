@@ -15,26 +15,17 @@ client = OpenAI(
 MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
 
 
-def analyze_risk(description: str, similar_risks: list | None = None) -> dict:
-    context = ""
-    if similar_risks:
-        lines = [
-            f"- {r['description']} (mitigation: {r['mitigation']})"
-            for r in similar_risks
-        ]
-        context = "Similar past incidents for reference:\n" + "\n".join(lines)
+def suggest_text(title: str, description: str, category: str | None = None) -> dict:
+    prompt = f"""You are an expert project risk analyst in a bank programme office.
+Improve the record below. Return ONLY a JSON object with these keys:
+- standardised_description: one or two clear sentences covering cause, event and impact
+- suggested_category: one of Schedule, Budget, Scope, Resource, Technical, Vendor, Compliance, Security
+- suggested_mitigation: a short, practical mitigation or resolution plan
+- follow_up_actions: a list of exactly 3 short follow-up actions
 
-    prompt = f"""You are an expert financial risk analyst working for a bank.
-Analyze the text below and return ONLY a JSON object with these keys:
-- type: "Risk" or "Issue"
-- category: one of Credit, Market, Operational, Liquidity, Fraud, Compliance, Cyber Security, Vendor, Project
-- severity: Low, Medium or High
-- probability: Low, Medium or High
-- mitigation: a short, practical suggestion suitable for a bank
-
-{context}
-
-Text: {description}"""
+Title: {title or "not given"}
+Category given by the user: {category or "not given"}
+Description: {description}"""
 
     response = client.chat.completions.create(
         model=MODEL,
