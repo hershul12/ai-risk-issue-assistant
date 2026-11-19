@@ -19,7 +19,7 @@ React, FastAPI, SQLite, Groq API (GPT-OSS), Azure
 
 ## Project Plan
 - [x] Day 31: Define and design
-- [ ] Day 32: Backend and AI
+- [x] Day 32: Backend and AI
 - [ ] Day 33: Frontend and integration
 - [ ] Day 34: Deployment and testing
 - [ ] Day 35: Demo and documentation
