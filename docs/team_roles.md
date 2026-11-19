@@ -6,7 +6,7 @@ This is an individual project.
 |------|----------------|
 | Project Manager | Planning and tracking |
 | Backend and AI Developer | FastAPI, LLM and vector DB |
-| Frontend Developer | Streamlit UI |
+| Frontend Developer | React UI |
 | DevOps | Docker, Azure, CI/CD |
 | Tester | Unit, integration and load testing |
 | Documentation | README, architecture and runbook |

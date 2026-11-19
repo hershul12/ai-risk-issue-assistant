@@ -1,10 +1,22 @@
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 
 from app.services.llm_service import analyze_risk
 from app.services.vector_service import search_similar
 
 app = FastAPI(title="RiskPilot: Financial Risk & Issue Triage and Mitigation Assistant")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+        "http://localhost:3000",
+    ],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
 class RiskInput(BaseModel):
@@ -19,7 +31,10 @@ def health():
 @app.post("/analyze")
 def analyze(data: RiskInput):
     try:
-        return analyze_risk(data.description)
+        similar_risks = search_similar(data.description)
+        result = analyze_risk(data.description, similar_risks)
+        result["similar_risks"] = similar_risks
+        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}")
 
