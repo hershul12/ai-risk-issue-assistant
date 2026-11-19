@@ -1,0 +1,13 @@
+id,description,mitigation
+1,"Rise in loan defaults among small business borrowers","Tighten credit scoring, review exposure limits, and increase monitoring of high-risk accounts"
+2,"Sharp fall in bond prices due to interest rate hike","Hedge with interest rate swaps, diversify the portfolio, and review value-at-risk limits"
+3,"Customers reported fraudulent card transactions overseas","Block affected cards, enable real-time fraud alerts, and strengthen transaction monitoring rules"
+4,"Core banking system outage during month-end processing","Activate disaster recovery site, communicate with customers, and run a root cause analysis"
+5,"Delay in meeting a regulatory reporting deadline","Escalate to compliance head, file an extension request, and automate report generation"
+6,"Liquidity ratio dropped below the internal threshold","Arrange short-term funding, reduce illiquid holdings, and review cash flow forecasts daily"
+7,"Phishing attack targeted employees and exposed credentials","Reset affected passwords, enforce multi-factor authentication, and run staff awareness training"
+8,"Anti-money laundering alerts not reviewed within the SLA","Add analysts to the review team, prioritise high-risk alerts, and tune alert thresholds"
+9,"Third-party payment vendor failed a security audit","Demand a remediation plan, limit data sharing, and identify an alternate vendor"
+10,"Currency exchange rate volatility affecting foreign exposure","Use forward contracts, set exposure limits per currency, and review hedging strategy"
+11,"Data migration to the new loan system lost customer records","Restore from backup, validate record counts, and pause cutover until reconciliation is complete"
+12,"Credit rating of a major corporate borrower was downgraded","Re-assess collateral, reduce further exposure, and increase provisioning"
