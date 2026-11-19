@@ -14,7 +14,7 @@ flowchart TB
     UI -->|"REST JSON"| API
 
     subgraph API["Backend - FastAPI"]
-        AUTH["Authentication and Role Check"]
+        AUTH["Role Check (X-Role header)"]
         CRUD["CRUD Endpoints"]
         SCORE["Scoring Engine: probability x impact"]
         SUGG["AI Suggestion Endpoint"]
