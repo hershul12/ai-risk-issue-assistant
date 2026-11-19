@@ -1,19 +1,26 @@
-# RiskPilot: AI-Powered Financial Risk & Issue Triage and Mitigation Assistant
+# RiskPilot: AI-Powered Project Risk & Issue Triage and Mitigation Assistant
 
-An AI assistant for banks and financial institutions that classifies
-financial risks and issues, rates their severity and probability, and
-suggests mitigation actions using similar past incidents.
+A project risk and issue assistant that captures records, standardises
+descriptions, suggests categorisation and drafts mitigation and follow-up
+actions for owners to review.
 
 ## Domain
-Banking & Financial Services (Financial Risk Management)
+Project risk and issue management for financial services programmes
+
+## Target Users
+Project manager, risk/issue owner, programme lead
+
+## MVP
+Create/read/update risk and issue register, deterministic scoring,
+AI-drafted mitigation suggestions, dashboard with filters, audit log.
 
 ## Tech Stack
-React, FastAPI, Groq API (GPT-OSS), FAISS, scikit-learn, Azure
+React, FastAPI, SQLite, Groq API (GPT-OSS), Azure
 
 ## Project Plan
-- [x] Day 31: Project setup and architecture
-- [x] Day 32: Backend and AI integration
-- [ ] Day 33: Frontend and middleware
+- [x] Day 31: Define and design
+- [ ] Day 32: Backend and AI
+- [ ] Day 33: Frontend and integration
 - [ ] Day 34: Deployment and testing
 - [ ] Day 35: Demo and documentation
 

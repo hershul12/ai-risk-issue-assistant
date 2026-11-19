@@ -1,31 +1,34 @@
 # Problem Statement
 
-Banks and financial institutions face many types of risk: credit risk,
-market risk, operational risk, liquidity risk, fraud and compliance risk.
-These risks and issues are often recorded in emails, spreadsheets and
-meeting notes. This makes them slow to classify, inconsistent to rate, and
-lessons from past incidents are easily forgotten.
+Risks and issues in project programmes are often recorded inconsistently
+in emails, spreadsheets and meeting notes. This makes ownership,
+prioritisation and follow-up difficult, especially in financial services
+programmes where delays and control gaps have a high impact.
 
-# Proposed Solution
+# Goal
 
-RiskPilot: AI-Powered Financial Risk & Issue Triage and Mitigation Assistant.
-The user types a financial risk or issue in simple language. The AI then:
-- Classifies it as a risk or an issue
-- Identifies the risk category (Credit, Market, Operational, Liquidity,
-  Fraud, Compliance, Cyber Security, Vendor)
-- Rates its severity and probability
-- Suggests mitigation actions
-- Finds similar past risks using a vector database (RAG)
+Create a project risk and issue assistant that captures records,
+standardises descriptions, suggests categorisation and drafts mitigation
+and follow-up actions for owners to review.
 
 # Target Users
 
-Risk managers, compliance officers and project managers in banks and
-financial institutions.
+- Project manager
+- Risk/issue owner
+- Programme lead
 
 # Domain
 
-Banking & Financial Services (Financial Risk Management)
+Project risk and issue management for financial services programmes.
+
+# Project Objectives
+
+- Capture risks and issues consistently
+- Classify records using agreed criteria
+- Generate concise summaries and suggested actions
+- Track owner, status, due date and review notes
+- Show open, overdue and high-priority items
 
 # Project Type
 
-Chatbot with recommender
+Workflow assistant with AI-generated suggestions
