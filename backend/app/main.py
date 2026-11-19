@@ -17,7 +17,7 @@ Base.metadata.create_all(bind=engine)
 with SessionLocal() as _db:
     seed_if_empty(_db)
 
-app = FastAPI(title="RiskPilot: Project Risk & Issue Triage and Mitigation Assistant")
+app = FastAPI(title="RiskPilot: Project Risk & Issue Triage and Mitigation")
 
 app.add_middleware(
     CORSMiddleware,

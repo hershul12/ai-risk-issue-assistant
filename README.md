@@ -1,11 +1,11 @@
-# RiskPilot: AI-Powered Project Risk & Issue Triage and Mitigation Assistant
+# RiskPilot: AI-Powered Project Risk & Issue Triage and Mitigation
 
 A project risk and issue assistant that captures records, standardises
 descriptions, suggests categorisation and drafts mitigation and follow-up
 actions for owners to review.
 
 ## Domain
-Project risk and issue management for financial services programmes
+Financial Risk Management
 
 ## Target Users
 Project manager, risk/issue owner, programme lead

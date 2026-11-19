@@ -19,7 +19,7 @@ and follow-up actions for owners to review.
 
 # Domain
 
-Project risk and issue management for financial services programmes.
+Financial Risk Management
 
 # Project Objectives
 
