@@ -8,7 +8,7 @@ suggests mitigation actions using similar past incidents.
 Banking & Financial Services (Financial Risk Management)
 
 ## Tech Stack
-FastAPI, OpenAI API, FAISS, Streamlit, Azure
+FastAPI, Groq API (GPT-OSS), FAISS, scikit-learn, Streamlit, Azure
 
 ## Project Plan
 - [x] Day 31: Project setup and architecture

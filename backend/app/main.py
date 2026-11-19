@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from app.services.llm_service import analyze_risk
@@ -18,9 +18,15 @@ def health():
 
 @app.post("/analyze")
 def analyze(data: RiskInput):
-    return analyze_risk(data.description)
+    try:
+        return analyze_risk(data.description)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}")
 
 
 @app.post("/similar")
 def similar(data: RiskInput):
-    return search_similar(data.description)
+    try:
+        return search_similar(data.description)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}")

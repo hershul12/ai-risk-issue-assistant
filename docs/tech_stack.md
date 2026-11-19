@@ -3,7 +3,8 @@
 | Layer | Tool |
 |-------|------|
 | Backend | FastAPI (Python) |
-| LLM | OpenAI API |
+| LLM | Groq API (OpenAI GPT-OSS 20B) |
+| Embeddings | TF-IDF (scikit-learn) |
 | Vector Database | FAISS |
 | Frontend | Streamlit |
 | Cloud | Microsoft Azure |
