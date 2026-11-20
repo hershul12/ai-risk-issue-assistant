@@ -21,10 +21,11 @@ def build_index():
     index.add(matrix)
 
 
-def search_similar(query: str, k: int = 3) -> list:
+def search_similar(query: str, k: int = 3, min_score: float = 0.2) -> list:
     if index is None:
         build_index()
     query_vector = vectorizer.transform([query]).toarray().astype("float32")
     faiss.normalize_L2(query_vector)
-    _, ids = index.search(query_vector, k)
-    return df.iloc[ids[0]].to_dict(orient="records")
+    scores, ids = index.search(query_vector, k)
+    keep = [i for s, i in zip(scores[0], ids[0]) if s >= min_score]
+    return df.iloc[keep].to_dict(orient="records")
