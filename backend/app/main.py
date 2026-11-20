@@ -1,3 +1,4 @@
+from app.middleware import register_middleware
 from collections import Counter
 from typing import Optional
 
@@ -18,7 +19,7 @@ with SessionLocal() as _db:
     seed_if_empty(_db)
 
 app = FastAPI(title="RiskPilot: Project Risk & Issue Triage and Mitigation")
-
+register_middleware(app)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
