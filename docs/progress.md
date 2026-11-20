@@ -16,6 +16,10 @@ Day 32 - Completed:
 
 Day 33 - Completed:
 - React (Vite) dashboard: summary strip, risk matrix, filters, register table
-- Record form with AI draft panel and human review workflow with role rules
+- Record form with AI draft and role-based review workflow
 - Backend middleware: request logging and error handling
-- UI tested and feedback recorded in docs/ui_testing.md
+- UI test checklist in docs/ui_testing.md
+- Code review fixes: required role header, enforced review life cycle, protected review notes
+- RAG: AI draft uses the 3 most similar past risks (TF-IDF + FAISS)
+- Tested with PostgreSQL locally (pgAdmin)
+- README and docs updated
