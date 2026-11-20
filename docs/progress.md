@@ -23,3 +23,4 @@ Day 33 - Completed:
 - RAG: AI draft uses the 3 most similar past risks (TF-IDF + FAISS)
 - Tested with PostgreSQL locally (pgAdmin)
 - README and docs updated
+- AI import: extract risks and issues from emails or meeting notes as drafts for review
