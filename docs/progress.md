@@ -13,3 +13,9 @@ Day 32 - Completed:
 - AI suggestion endpoint (/suggest) using Groq, marked as suggestions
 - Sample register with 30 records
 - Tested GET /items, GET /dashboard/summary and POST /items
+
+Day 33 - Completed:
+- React (Vite) dashboard: summary strip, risk matrix, filters, register table
+- Record form with AI draft panel and human review workflow with role rules
+- Backend middleware: request logging and error handling
+- UI tested and feedback recorded in docs/ui_testing.md
