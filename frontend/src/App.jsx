@@ -10,6 +10,7 @@ import Filters from "./components/Filters";
 import RegisterTable from "./components/RegisterTable";
 import DetailDrawer from "./components/DetailDrawer";
 import NewRecordModal from "./components/NewRecordModal";
+import ExtractModal from "./components/ExtractModal";
 
 export default function App() {
   const [role, setRole] = useState("Project Manager");
@@ -20,6 +21,9 @@ export default function App() {
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [selectedId, setSelectedId] = useState(null);
   const [showNew, setShowNew] = useState(false);
+  const [showExtract, setShowExtract] = useState(false);
+  const [extract, setExtract] = useState({ text: "", items: [], used: [] });
+  const [draft, setDraft] = useState(null);
   const [toast, setToast] = useState(null);
 
   const notify = useCallback(
@@ -69,13 +73,40 @@ export default function App() {
       setItems((prev) => sortItems([created, ...prev]));
       refreshSummary();
       setShowNew(false);
+      if (draft) {
+        setExtract((x) => ({ ...x, used: [...x.used, draft.index] }));
+        setDraft(null);
+        setShowExtract(true);
+      }
       notify("Record created");
     },
-    [refreshSummary, notify]
+    [refreshSummary, notify, draft]
   );
 
   const closeDrawer = useCallback(() => setSelectedId(null), []);
-  const closeModal = useCallback(() => setShowNew(false), []);
+  const closeModal = useCallback(() => {
+    setShowNew(false);
+    if (draft) {
+      setDraft(null);
+      setShowExtract(true);
+    }
+  }, [draft]);
+  const closeExtract = useCallback(() => setShowExtract(false), []);
+
+  function pickDraft(item, index) {
+    setDraft({
+      index,
+      values: {
+        title: item.title,
+        description: item.description,
+        item_type: item.item_type,
+        category: item.category,
+        mitigation: item.suggested_mitigation || "",
+      },
+    });
+    setShowExtract(false);
+    setShowNew(true);
+  }
 
   function handlePick(kind) {
     const next = { ...EMPTY_FILTERS };
@@ -113,6 +144,15 @@ export default function App() {
                 {ROLES.map((r) => <option key={r}>{r}</option>)}
               </select>
             </div>
+            <button
+              type="button"
+              className="btn btn-ghost"
+              disabled={!canCreate(role)}
+              title={canCreate(role) ? "" : "Only a Project Manager can create records"}
+              onClick={() => setShowExtract(true)}
+            >
+              Import from text
+            </button>
             <button
               type="button"
               className="btn"
@@ -180,7 +220,20 @@ export default function App() {
         />
       )}
       {showNew && (
-        <NewRecordModal role={role} onClose={closeModal} onCreated={handleCreated} />
+        <NewRecordModal
+          role={role}
+          initial={draft ? draft.values : undefined}
+          onClose={closeModal}
+          onCreated={handleCreated}
+        />
+      )}
+      {showExtract && (
+        <ExtractModal
+          state={extract}
+          onChange={setExtract}
+          onUse={pickDraft}
+          onClose={closeExtract}
+        />
       )}
       {toast && (
         <div key={toast.id} className={`toast toast-${toast.kind}`} role={toast.kind === "error" ? "alert" : "status"}>

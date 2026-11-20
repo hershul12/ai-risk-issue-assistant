@@ -44,7 +44,9 @@ class SuggestRequest(BaseModel):
     description: str = Field(min_length=5)
     category: Optional[str] = None
 
-
+class ExtractRequest(BaseModel):
+    text: str = Field(min_length=20, max_length=8000)
+    
 class ItemOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 

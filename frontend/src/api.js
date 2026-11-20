@@ -48,4 +48,5 @@ export const api = {
   changeStatus: (role, id, body) =>
     request(`/items/${id}/status`, { method: "PATCH", role, body }),
   suggest: (body) => request("/suggest", { method: "POST", body }),
+    extract: (text) => request("/extract", { method: "POST", body: { text } }),
 };

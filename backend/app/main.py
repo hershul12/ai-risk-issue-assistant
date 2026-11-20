@@ -12,7 +12,7 @@ from app.database import Base, SessionLocal, engine, get_db
 from app.models import utcnow
 from app.scoring import calculate_score, get_priority, is_overdue
 from app.seed import seed_if_empty
-from app.services.llm_service import suggest_text
+from app.services.llm_service import extract_items, suggest_text
 from app.services.vector_service import search_similar
 
 Base.metadata.create_all(bind=engine)
@@ -250,6 +250,17 @@ def suggest(data: schemas.SuggestRequest):
         "similar": similar_cases,
     }
 
+@app.post("/extract")
+def extract(data: schemas.ExtractRequest):
+    try:
+        items = extract_items(data.text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}")
+    return {
+        "suggestion": True,
+        "note": "AI-extracted drafts. A human must review each one before saving.",
+        "items": items,
+    }
 
 @app.post("/similar")
 def similar(data: schemas.SuggestRequest):

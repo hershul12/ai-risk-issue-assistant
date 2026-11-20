@@ -22,7 +22,7 @@ function validate(f) {
   return problems;
 }
 
-export default function NewRecordModal({ role, onClose, onCreated }) {
+export default function NewRecordModal({ role, initial, onClose, onCreated }) {
   const [form, setForm] = useState({
     title: "",
     description: "",
@@ -33,6 +33,7 @@ export default function NewRecordModal({ role, onClose, onCreated }) {
     owner: "",
     due_date: inDays(14),
     mitigation: "",
+    ...initial,
   });
   const [problems, setProblems] = useState([]);
   const [busy, setBusy] = useState(false);
