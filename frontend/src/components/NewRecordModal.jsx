@@ -38,6 +38,7 @@ export default function NewRecordModal({ role, onClose, onCreated }) {
   const [busy, setBusy] = useState(false);
   const [drafting, setDrafting] = useState(false);
   const [suggestion, setSuggestion] = useState(null);
+  const [similar, setSimilar] = useState([]);
   const [draftError, setDraftError] = useState("");
 
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
@@ -62,6 +63,7 @@ export default function NewRecordModal({ role, onClose, onCreated }) {
         category: form.category,
       });
       const r = res.result || {};
+      setSimilar(res.similar || []);
       if (!r.standardised_description && !r.suggested_mitigation) {
         setDraftError("The AI reply could not be read. Try drafting again.");
       } else {
@@ -175,6 +177,12 @@ export default function NewRecordModal({ role, onClose, onCreated }) {
                       Use this category
                     </button>
                   </div>
+                </div>
+              )}
+              {similar.length > 0 && (
+                <div>
+                  <p className="label">Similar past risks used as context</p>
+                  <ul>{similar.map((c) => <li key={c.id}>{c.description}</li>)}</ul>
                 </div>
               )}
               {suggestion.suggested_mitigation && (

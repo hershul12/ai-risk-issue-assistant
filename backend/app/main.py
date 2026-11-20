@@ -1,3 +1,4 @@
+import os
 from app.middleware import register_middleware
 from collections import Counter
 from typing import Optional
@@ -22,11 +23,10 @@ app = FastAPI(title="RiskPilot: Project Risk & Issue Triage and Mitigation")
 register_middleware(app)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "http://localhost:5173",
-        "http://127.0.0.1:5173",
-        "http://localhost:3000",
-    ],
+    allow_origins=os.getenv(
+        "ALLOWED_ORIGINS",
+        "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000",
+    ).split(","),
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -36,6 +36,13 @@ STATUS_RIGHTS = {
     "Project Manager": ALL_STATUSES,
     "Programme Lead": ALL_STATUSES,
     "Risk Owner": {"In Progress", "Pending Review"},
+}
+# Which status may follow which. Closed is reached only through review.
+TRANSITIONS = {
+    "Open": {"In Progress", "Pending Review"},
+    "In Progress": {"Pending Review"},
+    "Pending Review": {"In Progress", "Closed"},
+    "Closed": {"Open"},
 }
 
 
@@ -76,7 +83,7 @@ def health():
 def create_item(
     data: schemas.ItemCreate,
     db: Session = Depends(get_db),
-    x_role: str = Header("Project Manager", alias="X-Role"),
+    x_role: str = Header(..., alias="X-Role"),
 ):
     role = check_role(x_role)
     if role != "Project Manager":
@@ -131,7 +138,7 @@ def update_item(
     item_id: int,
     data: schemas.ItemUpdate,
     db: Session = Depends(get_db),
-    x_role: str = Header("Project Manager", alias="X-Role"),
+    x_role: str = Header(..., alias="X-Role"),
 ):
     role = check_role(x_role)
     if role not in ("Project Manager", "Risk Owner"):
@@ -147,10 +154,12 @@ def update_item(
             setattr(item, field, value)
             details.append(f"{field}: {old} -> {value}")
 
+    if not details:
+        return to_out(item)
     item.score = calculate_score(item.probability, item.impact)
     item.priority = get_priority(item.score)
     item.updated_at = utcnow()
-    write_log(db, item.id, "updated", role, "; ".join(details) or "No changes")
+    write_log(db, item.id, "updated", role, "; ".join(details))
     db.commit()
     db.refresh(item)
     return to_out(item)
@@ -161,7 +170,7 @@ def change_status(
     item_id: int,
     data: schemas.StatusChange,
     db: Session = Depends(get_db),
-    x_role: str = Header("Project Manager", alias="X-Role"),
+    x_role: str = Header(..., alias="X-Role"),
 ):
     role = check_role(x_role)
     if data.status not in STATUS_RIGHTS[role]:
@@ -170,6 +179,11 @@ def change_status(
             detail=f"{role} cannot set the status to {data.status}",
         )
     item = get_item_or_404(db, item_id)
+    if data.status not in TRANSITIONS[item.status]:
+        raise HTTPException(
+            status_code=400,
+            detail=f"A record cannot move from {item.status} to {data.status}",
+        )
     old_status = item.status
     item.status = data.status
     item.updated_at = utcnow()
@@ -222,13 +236,18 @@ def dashboard_summary(db: Session = Depends(get_db)):
 @app.post("/suggest")
 def suggest(data: schemas.SuggestRequest):
     try:
-        result = suggest_text(data.title, data.description, data.category)
+        similar_cases = search_similar(data.description)
+    except Exception:
+        similar_cases = []
+    try:
+        result = suggest_text(data.title, data.description, data.category, similar_cases)
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}")
     return {
         "suggestion": True,
         "note": "AI-generated suggestion. A human must review it before saving.",
         "result": result,
+        "similar": similar_cases,
     }
 
 

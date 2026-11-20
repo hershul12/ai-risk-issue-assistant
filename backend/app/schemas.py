@@ -32,7 +32,6 @@ class ItemUpdate(BaseModel):
     owner: Optional[str] = None
     due_date: Optional[date] = None
     mitigation: Optional[str] = None
-    review_notes: Optional[str] = None
 
 
 class StatusChange(BaseModel):

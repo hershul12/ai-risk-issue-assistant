@@ -41,8 +41,17 @@ export const canReview = (role, item) =>
   (role === "Programme Lead" || role === "Project Manager") &&
   item.status === "Pending Review";
 
-export const allowedStatuses = (role) =>
-  role === "Risk Owner" ? ["In Progress", "Pending Review"] : STATUSES;
+const TRANSITIONS = {
+  Open: ["In Progress", "Pending Review"],
+  "In Progress": ["Pending Review"],
+  "Pending Review": ["In Progress", "Closed"],
+  Closed: ["Open"],
+};
+
+export const allowedStatuses = (role, current) => {
+  const byRole = role === "Risk Owner" ? ["In Progress", "Pending Review"] : STATUSES;
+  return (TRANSITIONS[current] || []).filter((s) => byRole.includes(s));
+};
 
 export const statusClass = (s) =>
   "status-" + s.toLowerCase().replace(/\s+/g, "-");

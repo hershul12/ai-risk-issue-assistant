@@ -20,7 +20,7 @@ export default function DetailDrawer({ item, role, onClose, onChanged, onError }
   const [busy, setBusy] = useState(false);
 
   const showReview = canReview(role, item);
-  const statusOptions = allowedStatuses(role).filter((s) => s !== item.status);
+  const statusOptions = allowedStatuses(role, item.status);
   const showStatus =
     !showReview &&
     statusOptions.length > 0 &&
@@ -54,7 +54,7 @@ export default function DetailDrawer({ item, role, onClose, onChanged, onError }
   useEffect(() => {
     setMitigation(item.mitigation || "");
     setNote("");
-    setStatus(allowedStatuses(role).filter((s) => s !== item.status)[0] || "");
+    setStatus(allowedStatuses(role, item.status)[0] || "");
   }, [item.id, item.updated_at, item.status, item.mitigation, role]);
 
   async function run(action, message) {

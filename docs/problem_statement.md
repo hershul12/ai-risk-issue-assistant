@@ -31,4 +31,6 @@ Financial Risk Management
 
 # Project Type
 
-Workflow assistant with AI-generated suggestions
+AI-assisted summarizer and recommender: it summarises a rough description into a clear
+cause-event-impact statement, and recommends a category, mitigation, follow-up actions
+and similar past risks.
