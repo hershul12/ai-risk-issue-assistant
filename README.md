@@ -49,6 +49,18 @@ docker build -t riskpilot-api .
 docker run -d --name riskpilot --env-file .env -p 8000:8000 riskpilot-api
 ```
 
+## Run the Tests
+```
+cd backend
+pip install -r requirements-dev.txt
+pytest
+```
+
+## CI/CD (GitHub Actions)
+- **CI** (`.github/workflows/ci.yml`, on pull requests): backend lint + pytest, frontend lint + build, Docker build with a `/health` smoke test.
+- **CD** (`.github/workflows/cd.yml`, on push to `master` or a `v*` tag): runs CI, then pushes the backend image to `ghcr.io/<owner>/<repo>/riskpilot-api` (tags `latest`, `sha-<commit>`, and the version for tags).
+- **Azure deploy** (optional): add the repo variable `AZURE_WEBAPP_NAME` and secret `AZURE_WEBAPP_PUBLISH_PROFILE` to deploy the image to an Azure Web App. Skipped until they are set.
+
 ## Project Plan
 - [x] Day 31: Define and design
 - [x] Day 32: Backend and AI
