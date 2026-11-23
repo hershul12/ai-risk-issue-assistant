@@ -1,6 +1,6 @@
 fastapi==0.165.0
 uvicorn==0.54.0
-openai==3.55.1
+openai==3.57.0
 faiss-cpu==1.16.0
 numpy==2.5.5
 pandas==3.1.1
