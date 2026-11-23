@@ -8,3 +8,5 @@ scikit-learn
 sqlalchemy
 python-dotenv
 psycopg2-binary
+pypdf
+python-multipart
