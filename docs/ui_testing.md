@@ -16,4 +16,4 @@
 ## Feedback log
 | Feedback | Change made |
 |----------|-------------|
-| (add what a classmate or your mentor suggests) | (add what you changed) |
+| Mentor: problem statement unclear - is it banking, which risks, how is AI relevant to banking | Rescoped to banking technology programmes with 8 risk types, banking rules in AI prompts, 48 banking example risks, and bank policy upload |
