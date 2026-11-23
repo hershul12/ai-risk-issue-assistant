@@ -1,114 +1,99 @@
 # Architecture
 
-RiskPilot is a full-stack web application for managing project delivery risks
-and issues in banking technology programmes.
+RiskPilot is a web application that helps bank project teams record, rank,
+fix and approve project risks and issues in one place.
 
-## System Overview
+## The Big Picture
 
 ```mermaid
-flowchart TB
-    U["Users: Project Manager, Risk Owner, Programme Lead"] --> UI
+flowchart LR
+    USER["👤 Users<br/>Project Manager<br/>Risk Owner<br/>Programme Lead"]
+    WEB["🖥️ Website<br/>React"]
+    API["⚙️ Backend<br/>FastAPI in Docker<br/>rules, roles, scoring"]
+    DB[("🗄️ Database<br/>PostgreSQL<br/>records, history,<br/>policies")]
+    AI["🤖 AI<br/>Azure OpenAI<br/>writes drafts"]
+    KB["📚 Knowledge<br/>48 past banking risks<br/>+ uploaded bank policies"]
 
-    subgraph UI["Frontend - React + Vite"]
-        DASH["Dashboard: summary numbers, risk matrix, status bars"]
-        REG["Register: search, filters, records table"]
-        FORM["New Record form with Draft with AI"]
-        IMP["Import from text: paste email or meeting notes"]
-        POL["Policies: upload bank policy PDFs"]
-        DRAW["Record panel: mitigation, status change, review, history"]
-    end
-
-    UI -->|"REST API, JSON, X-Role header"| API
-
-    subgraph API["Backend - Python FastAPI (Docker container)"]
-        MW["Middleware: request logging, error handling, CORS"]
-        VAL["Validation: Pydantic schemas"]
-        ROLE["Role rules and status workflow"]
-        CRUD["Record endpoints: create, list, update, status, history, summary"]
-        SCORE["Scoring: probability x impact"]
-        AUDIT["Audit log writer"]
-        SUGG["AI endpoints: /suggest and /extract"]
-        PDF["Policy upload: read PDF, split into passages"]
-        MW --> VAL --> ROLE
-        ROLE --> CRUD
-        CRUD --> SCORE
-        CRUD --> AUDIT
-    end
-
-    CRUD -->|"SQLAlchemy"| DB[("PostgreSQL: items, audit_log, policy_documents, policy_chunks")]
-    AUDIT --> DB
-    PDF --> DB
-    DB -.->|"viewed in"| PGA["pgAdmin"]
-
-    SUGG -->|"1. Retrieve"| RAG["Search: TF-IDF + FAISS"]
-    RAG --> KB["48 banking programme risks"]
-    RAG --> DB
-    SUGG -->|"2. Prompt with banking rules, examples and policy passages"| LLM["Azure OpenAI"]
-    LLM -->|"3. Draft text only"| SUGG
+    USER --> WEB
+    WEB <--> API
+    API <--> DB
+    API --> KB
+    API <--> AI
 ```
 
-## Layers
+**In one sentence:** users work on the website, the website only talks to the
+backend, and the backend does everything else: it applies the rules, saves the
+data, finds relevant knowledge, and asks the AI for drafts.
 
-| Layer | Technology | Responsibility |
-|-------|------------|----------------|
-| Frontend | React (Vite) | Dashboard, register, forms, review panel, Import from text, Policies. Stores nothing permanently |
-| Backend | Python, FastAPI, in a Docker container | Validation, roles, status workflow, scoring, audit log, AI calls, policy upload, middleware |
-| Database | PostgreSQL with SQLAlchemy | Records, history and policy passages. Chosen through the DATABASE_URL setting |
-| AI | Azure OpenAI | Drafts descriptions and mitigations, and extracts risks from text |
-| Retrieval (RAG) | TF-IDF + FAISS | Finds similar past banking risks and relevant bank policy passages |
+## The Parts
 
-## Roles and Record Workflow
+| Part | Technology | What it does |
+|------|------------|--------------|
+| Website | React | What users see and click: dashboard, register, forms, review |
+| Backend | Python FastAPI, in a Docker container | The brain: checks data, enforces roles and workflow, calculates scores, records history |
+| Database | PostgreSQL | Stores records, their history, and uploaded policy text |
+| AI | Azure OpenAI | Writes descriptions and mitigation plans, and finds risks in emails |
+| Knowledge search | TF-IDF + FAISS | Finds similar past banking risks and relevant policy passages for the AI |
+
+## Who Does What
 
 ```mermaid
-stateDiagram-v2
-    [*] --> Open: Project Manager creates
-    Open --> InProgress: Risk Owner starts work
-    Open --> PendingReview: submitted for review
-    InProgress --> PendingReview: Risk Owner submits
-    PendingReview --> InProgress: Programme Lead sends back with a note
-    PendingReview --> Closed: Programme Lead approves
-    Closed --> Open: reopened if needed
+flowchart LR
+    A["Project Manager<br/>adds the risk"] --> B["Risk Owner<br/>works on it"]
+    B --> C["Programme Lead<br/>reviews it"]
+    C -->|"approve"| D["Closed"]
+    C -->|"send back with a note"| B
 ```
 
 | Role | Can do |
 |------|--------|
-| Project Manager | Create records (by hand or from text with AI), upload policies, edit, change status, review |
-| Risk Owner | Edit records, move to In Progress or Pending Review |
-| Programme Lead | Review: approve and close, or send back with a note |
+| Project Manager | Add records (by hand or from emails with AI), upload policies, edit, review |
+| Risk Owner | Work on records and submit them for review |
+| Programme Lead | Approve and close, or send back with a note |
 
-## Main Flows
+Record status: **Open -> In Progress -> Pending Review -> Closed**
 
-- **Create a record:** The backend checks the data and the role, calculates
-  score and priority, saves the record in PostgreSQL and writes a "created"
-  entry in the audit log.
-- **Draft with AI:** The backend finds similar past banking risks and relevant
-  bank policy passages, adds them and the banking rules to the prompt, and
-  Azure OpenAI drafts a description, category, mitigation and follow-up actions.
-- **Import from text:** Azure OpenAI finds every risk and issue in pasted text
-  and returns drafts. The user reviews each one before creating a record.
-- **Upload a policy:** The Project Manager uploads a PDF. The backend reads the
-  text, splits it into passages and stores them for retrieval.
-- **Review:** The Risk Owner submits a record. The Programme Lead approves and
-  closes it, or sends it back with a note. Every step is audited.
+## What Happens When...
 
-## Key Design Rules
+**...a record is created**
+1. The website sends the details to the backend.
+2. The backend checks the data and the user's role.
+3. It calculates the score: probability x impact (Low, Medium, High, Critical).
+4. It saves the record in the database and writes a history entry.
 
-- Scoring is deterministic: probability x impact, with fixed priority bands.
-  The AI never decides it.
-- The AI only drafts text. Nothing is saved until a person accepts it.
-- The AI is grounded in banking: banking rules, past banking risks and the
-  bank's own policies. It must not invent regulation details.
-- A record can only be closed after review, by a user with the right role.
-- Every create, update and status change is written to the audit log.
-- The frontend only talks to the backend, so the rules cannot be bypassed.
-- Secrets and settings come from environment variables, never from the code.
+**...someone clicks "Draft with AI"**
+1. The backend searches for similar past banking risks.
+2. It searches the uploaded bank policies for relevant rules.
+3. It sends the description, banking rules, past risks and policy rules to Azure OpenAI.
+4. The AI writes a clear description, a mitigation plan and follow-up actions.
+5. The person reviews it and decides what to keep. Nothing is saved automatically.
 
-## Deployment (Day 34)
+**...someone uses "Import from text"**
+1. The user pastes an email or meeting notes.
+2. Azure OpenAI finds every risk and issue in the text.
+3. The user reviews each draft and creates the ones that matter.
+
+**...a policy PDF is uploaded**
+1. The Project Manager uploads the PDF.
+2. The backend reads the text and splits it into short passages.
+3. The passages are saved in the database, ready for the AI to use.
+
+## Safety Rules
+
+- **Fair scoring:** a fixed formula decides priority, never the AI.
+- **AI only suggests:** a person reviews every draft before saving.
+- **Banking focus:** the AI follows banking rules, past banking risks and the bank's own policies, and must not invent regulations.
+- **Approval before closing:** only the right role can close a record, after review.
+- **Full history:** every change is recorded with who did it and when.
+- **No shortcuts:** the website only talks to the backend, so the rules can't be bypassed.
+- **Secrets stay safe:** keys and passwords are in settings, never in the code or on GitHub.
+
+## Deployment Status (Day 34)
 
 | Part | Status |
 |------|--------|
-| AI: Azure OpenAI | Done |
-| Backend Docker image | Done |
-| Azure Database for PostgreSQL | In progress |
-| Backend and frontend hosted on Azure | In progress |
-| CI/CD with GitHub Actions | In progress |
+| AI on Azure OpenAI | Done |
+| Backend packaged in Docker | Done |
+| Database on Azure PostgreSQL | In progress |
+| Website and backend hosted on Azure | In progress |
+| Automatic testing and deployment (CI/CD) | In progress |
