@@ -39,3 +39,24 @@ class AuditLog(Base):
     changed_by = Column(String(50), nullable=False)
     details = Column(Text, default="")
     timestamp = Column(DateTime, default=utcnow)
+    
+
+class PolicyDocument(Base):
+    __tablename__ = "policy_documents"
+
+    id = Column(Integer, primary_key=True, index=True)
+    name = Column(String(200), nullable=False, unique=True)
+    pages = Column(Integer, nullable=False)
+    passages = Column(Integer, nullable=False)
+    uploaded_by = Column(String(50), nullable=False)
+    uploaded_at = Column(DateTime, default=utcnow)
+
+
+class PolicyChunk(Base):
+    __tablename__ = "policy_chunks"
+
+    id = Column(Integer, primary_key=True, index=True)
+    document_id = Column(Integer, index=True, nullable=False)
+    document_name = Column(String(200), nullable=False)
+    page = Column(Integer, nullable=False)
+    text = Column(Text, nullable=False)

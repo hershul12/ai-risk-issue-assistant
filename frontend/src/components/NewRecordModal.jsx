@@ -40,6 +40,7 @@ export default function NewRecordModal({ role, initial, onClose, onCreated }) {
   const [drafting, setDrafting] = useState(false);
   const [suggestion, setSuggestion] = useState(null);
   const [similar, setSimilar] = useState([]);
+  const [policies, setPolicies] = useState([]);
   const [draftError, setDraftError] = useState("");
 
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
@@ -65,6 +66,7 @@ export default function NewRecordModal({ role, initial, onClose, onCreated }) {
       });
       const r = res.result || {};
       setSimilar(res.similar || []);
+      setPolicies(res.policies || []);
       if (!r.standardised_description && !r.suggested_mitigation) {
         setDraftError("The AI reply could not be read. Try drafting again.");
       } else {
@@ -178,6 +180,18 @@ export default function NewRecordModal({ role, initial, onClose, onCreated }) {
                       Use this category
                     </button>
                   </div>
+                </div>
+              )}
+              {policies.length > 0 && (
+                <div>
+                  <p className="label">Bank policy used as context</p>
+                  <ul>
+                    {policies.map((p, i) => (
+                      <li key={i}>
+                        <strong>{p.document}, page {p.page}:</strong> {p.text}
+                      </li>
+                    ))}
+                  </ul>
                 </div>
               )}
               {similar.length > 0 && (

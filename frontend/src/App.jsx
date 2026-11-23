@@ -11,6 +11,7 @@ import RegisterTable from "./components/RegisterTable";
 import DetailDrawer from "./components/DetailDrawer";
 import NewRecordModal from "./components/NewRecordModal";
 import ExtractModal from "./components/ExtractModal";
+import PolicyModal from "./components/PolicyModal";
 
 export default function App() {
   const [role, setRole] = useState("Project Manager");
@@ -24,6 +25,7 @@ export default function App() {
   const [showExtract, setShowExtract] = useState(false);
   const [extract, setExtract] = useState({ text: "", items: [], used: [] });
   const [draft, setDraft] = useState(null);
+  const [showPolicies, setShowPolicies] = useState(false);
   const [toast, setToast] = useState(null);
 
   const notify = useCallback(
@@ -92,6 +94,7 @@ export default function App() {
     }
   }, [draft]);
   const closeExtract = useCallback(() => setShowExtract(false), []);
+  const closePolicies = useCallback(() => setShowPolicies(false), []);
 
   function pickDraft(item, index) {
     setDraft({
@@ -144,6 +147,9 @@ export default function App() {
                 {ROLES.map((r) => <option key={r}>{r}</option>)}
               </select>
             </div>
+            <button type="button" className="btn btn-ghost" onClick={() => setShowPolicies(true)}>
+              Policies
+            </button>
             <button
               type="button"
               className="btn btn-ghost"
@@ -234,6 +240,9 @@ export default function App() {
           onUse={pickDraft}
           onClose={closeExtract}
         />
+      )}
+      {showPolicies && (
+        <PolicyModal role={role} onClose={closePolicies} onNotify={notify} />
       )}
       {toast && (
         <div key={toast.id} className={`toast toast-${toast.kind}`} role={toast.kind === "error" ? "alert" : "status"}>

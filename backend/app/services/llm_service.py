@@ -28,9 +28,12 @@ Keep mitigations practical for a bank programme team."""
 
 
 def suggest_text(title: str, description: str, category: str | None = None,
-                 similar: list | None = None) -> dict:
+                 similar: list | None = None, policies: list | None = None) -> dict:
     examples = "\n".join(
         f"- {c['description']} -> mitigation: {c['mitigation']}" for c in (similar or [])
+    ) or "none"
+    policy_text = "\n".join(
+        f"- [{p['document']}, page {p['page']}] {p['text']}" for p in (policies or [])
     ) or "none"
     prompt = f"""You are an expert project risk analyst in a bank programme office.
 {BANKING_RULES}
@@ -46,7 +49,11 @@ Category given by the user: {category or "not given"}
 Description: {description}
 
 Similar past risks and how they were handled (use only if relevant):
-{examples}"""
+{examples}
+
+Extracts from the bank's own policies (if one applies, the mitigation must follow it
+and name the policy and page, for example "as required by <policy>, page <n>"):
+{policy_text}"""
 
     response = client.chat.completions.create(
         model=MODEL,

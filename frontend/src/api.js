@@ -10,7 +10,7 @@ function formatError(data, status) {
   return `The request failed (status ${status}).`;
 }
 
-async function request(path, { method = "GET", role, body } = {}) {
+async function request(path, { method = "GET", role, body, form } = {}) {
   const headers = {};
   if (body) headers["Content-Type"] = "application/json";
   if (role) headers["X-Role"] = role;
@@ -20,7 +20,7 @@ async function request(path, { method = "GET", role, body } = {}) {
     res = await fetch(`${BASE}${path}`, {
       method,
       headers,
-      body: body ? JSON.stringify(body) : undefined,
+      body: form || (body ? JSON.stringify(body) : undefined),
     });
   } catch {
     throw new Error(
@@ -48,5 +48,12 @@ export const api = {
   changeStatus: (role, id, body) =>
     request(`/items/${id}/status`, { method: "PATCH", role, body }),
   suggest: (body) => request("/suggest", { method: "POST", body }),
-    extract: (text) => request("/extract", { method: "POST", body: { text } }),
+  extract: (text) => request("/extract", { method: "POST", body: { text } }),
+  listPolicies: () => request("/policies"),
+  uploadPolicy: (role, file) => {
+    const form = new FormData();
+    form.append("file", file);
+    return request("/policies", { method: "POST", role, form });
+  },
+  deletePolicy: (role, id) => request(`/policies/${id}`, { method: "DELETE", role }),
 };
