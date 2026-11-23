@@ -1,5 +1,5 @@
 import os
-from app.middleware import register_middleware
+from app.middleware import logger, register_middleware
 from collections import Counter
 from typing import Optional
 
@@ -24,12 +24,17 @@ with SessionLocal() as _db:
 
 app = FastAPI(title="RiskPilot: Project Risk & Issue Triage and Mitigation")
 register_middleware(app)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=os.getenv(
+ALLOWED_ORIGINS = [
+    origin.strip().rstrip("/")
+    for origin in os.getenv(
         "ALLOWED_ORIGINS",
         "http://localhost:5173,http://127.0.0.1:5173,http://localhost:3000",
-    ).split(","),
+    ).split(",")
+    if origin.strip()
+]
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -47,6 +52,15 @@ TRANSITIONS = {
     "Pending Review": {"In Progress", "Closed"},
     "Closed": {"Open"},
 }
+
+
+def ai_error(action: str) -> HTTPException:
+    """Log the real error on the server and return a safe message to the browser."""
+    logger.exception("AI %s failed", action)
+    return HTTPException(
+        status_code=502,
+        detail=f"The AI service could not {action} right now. Please try again later.",
+    )
 
 
 def check_role(role: str) -> str:
@@ -250,8 +264,8 @@ def suggest(data: schemas.SuggestRequest, db: Session = Depends(get_db)):
         result = suggest_text(
             data.title, data.description, data.category, similar_cases, policies
         )
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}")
+    except Exception:
+        raise ai_error("draft a suggestion")
     return {
         "suggestion": True,
         "note": "AI-generated suggestion. A human must review it before saving.",
@@ -338,8 +352,8 @@ def delete_policy(
 def extract(data: schemas.ExtractRequest):
     try:
         items = extract_items(data.text)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}")
+    except Exception:
+        raise ai_error("extract items from the text")
     return {
         "suggestion": True,
         "note": "AI-extracted drafts. A human must review each one before saving.",
@@ -351,5 +365,6 @@ def extract(data: schemas.ExtractRequest):
 def similar(data: schemas.SuggestRequest):
     try:
         return search_similar(data.description)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"{type(e).__name__}: {e}")
+    except Exception:
+        logger.exception("Similar-risk search failed")
+        raise HTTPException(status_code=500, detail="Similar-risk search failed. Please try again.")

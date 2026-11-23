@@ -94,6 +94,12 @@ jobs:
     environment:
       name: production-frontend
     steps:
+      - name: Check the backend URL is set
+        if: ${{ vars.VITE_API_URL == '' }}
+        run: |
+          echo "::error::Set the repo variable VITE_API_URL to the backend URL, or the site will call 127.0.0.1"
+          exit 1
+
       - name: Download built frontend
         uses: actions/download-artifact@v4
         with:

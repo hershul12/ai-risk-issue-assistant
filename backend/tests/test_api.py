@@ -63,5 +63,15 @@ def test_cannot_close_without_review(client):
     assert res.status_code == 400
 
 
+def test_ai_errors_do_not_leak_details(client, monkeypatch):
+    def boom(_text):
+        raise RuntimeError("INTERNAL-DETAIL-SHOULD-NOT-LEAK")
+
+    monkeypatch.setattr("app.main.extract_items", boom)
+    res = client.post("/extract", json={"text": "The vendor has missed the payments go-live date."})
+    assert res.status_code == 502
+    assert "INTERNAL-DETAIL" not in res.text
+
+
 def test_missing_item_returns_404(client):
     assert client.get("/items/999999").status_code == 404

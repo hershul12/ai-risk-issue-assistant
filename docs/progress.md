@@ -30,3 +30,7 @@ Day 33 - Completed:
 Day 34 - In progress:
 - AI moved from Groq to Azure OpenAI
 - Backend containerised with Docker and tested locally
+- Backend tests with pytest (scoring, roles, review workflow, audit log)
+- CI/CD with GitHub Actions: lint, tests, frontend build, Docker smoke test, image published to GHCR, Azure deploy steps ready
+- Dependabot for weekly dependency updates; Python packages pinned
+- Hardening: container runs as non-root, AI errors no longer expose internal details

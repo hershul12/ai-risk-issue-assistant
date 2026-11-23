@@ -59,7 +59,7 @@ pytest
 ## CI/CD (GitHub Actions)
 - **CI** (`.github/workflows/ci.yml`, on pull requests): backend lint + pytest, frontend lint + build, Docker build with a `/health` smoke test.
 - **CD** (`.github/workflows/cd.yml`, on push to `master` or a `v*` tag): runs CI, then pushes the backend image to `ghcr.io/<owner>/<repo>/riskpilot-api` (tags `latest`, `sha-<commit>`, and the version for tags).
-- **Backend deploy** (optional): add the repo variable `AZURE_WEBAPP_NAME` and secret `AZURE_WEBAPP_PUBLISH_PROFILE` to deploy the image to an Azure Web App. Skipped until they are set. Set the app settings `AZURE_OPENAI_*`, `DATABASE_URL` and `ALLOWED_ORIGINS` (the frontend URL) on the Web App.
+- **Backend deploy** (optional): add the repo variable `AZURE_WEBAPP_NAME` and secret `AZURE_WEBAPP_PUBLISH_PROFILE` to deploy the image to an Azure Web App. Skipped until they are set. Set these app settings on the Web App: `WEBSITES_PORT=8000`, `AZURE_OPENAI_*`, `DATABASE_URL` (add `?sslmode=require` for Azure PostgreSQL) and `ALLOWED_ORIGINS` (the frontend URL). Keep it at one instance (see `docs/architecture.md`).
 - **Frontend deploy** (optional): set the repo variable `VITE_API_URL` (the backend URL), the variable `DEPLOY_FRONTEND_TO_AZURE=true` and the secret `AZURE_STATIC_WEB_APPS_API_TOKEN` to deploy to Azure Static Web Apps. Skipped until they are set.
 - **Dependabot** (`.github/dependabot.yml`): weekly update PRs for GitHub Actions, pip, npm and the Docker base image.
 

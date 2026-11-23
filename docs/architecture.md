@@ -95,5 +95,11 @@ Record status: **Open -> In Progress -> Pending Review -> Closed**
 | AI on Azure OpenAI | Done |
 | Backend packaged in Docker | Done |
 | Database on Azure PostgreSQL | In progress |
-| Website and backend hosted on Azure | In progress |
-| Automatic testing and deployment (CI/CD) | In progress |
+| Website and backend hosted on Azure | In progress (pipeline ready, Azure resources to be created) |
+| Automatic testing and deployment (CI/CD) | Done (GitHub Actions: tests, Docker image to GHCR, Azure deploy steps) |
+
+## Deployment Notes
+
+- Run the backend App Service with **one instance**. The policy search index is kept in memory, so extra instances would not see newly uploaded policies until they restart.
+- Tables are created on start-up (`create_all`). It adds new tables but does not change existing ones, so a column change needs a manual SQL change or a migration tool such as Alembic.
+- Roles come from the `X-Role` header and are not authenticated. Put the app behind Azure sign-in or IP restrictions before sharing the URL.
