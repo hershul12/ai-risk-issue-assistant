@@ -59,8 +59,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Lint
-        run: npm run lint
+      - name: Lint (warnings fail the build)
+        run: npm run lint -- --deny-warnings
 
       - name: Build
         run: npm run build

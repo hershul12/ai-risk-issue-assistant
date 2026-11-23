@@ -10,15 +10,15 @@ export default function PolicyModal({ role, onClose, onNotify }) {
   const [error, setError] = useState("");
   const canManage = canCreate(role);
 
-  const load = useCallback(async () => {
-    try {
-      setDocs(await api.listPolicies());
-    } catch (e) {
-      setError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+  const load = useCallback(
+    () =>
+      api
+        .listPolicies()
+        .then(setDocs)
+        .catch((e) => setError(e.message))
+        .finally(() => setLoading(false)),
+    []
+  );
 
   useEffect(() => {
     load();

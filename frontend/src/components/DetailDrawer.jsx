@@ -15,9 +15,20 @@ export default function DetailDrawer({ item, role, onClose, onChanged, onError }
   const closeRef = useRef(null);
   const [audit, setAudit] = useState([]);
   const [mitigation, setMitigation] = useState(item.mitigation || "");
-  const [status, setStatus] = useState("");
+  const [status, setStatus] = useState(() => allowedStatuses(role, item.status)[0] || "");
   const [note, setNote] = useState("");
   const [busy, setBusy] = useState(false);
+
+  // Reset the form when the record or role changes (adjusting state during render
+  // instead of in an effect avoids an extra render pass).
+  const resetKey = `${item.id}|${item.updated_at}|${item.status}|${item.mitigation}|${role}`;
+  const [prevResetKey, setPrevResetKey] = useState(resetKey);
+  if (prevResetKey !== resetKey) {
+    setPrevResetKey(resetKey);
+    setMitigation(item.mitigation || "");
+    setNote("");
+    setStatus(allowedStatuses(role, item.status)[0] || "");
+  }
 
   const showReview = canReview(role, item);
   const statusOptions = allowedStatuses(role, item.status);
@@ -50,12 +61,6 @@ export default function DetailDrawer({ item, role, onClose, onChanged, onError }
       cancelled = true;
     };
   }, [item.id, item.updated_at]);
-
-  useEffect(() => {
-    setMitigation(item.mitigation || "");
-    setNote("");
-    setStatus(allowedStatuses(role, item.status)[0] || "");
-  }, [item.id, item.updated_at, item.status, item.mitigation, role]);
 
   async function run(action, message) {
     setBusy(true);

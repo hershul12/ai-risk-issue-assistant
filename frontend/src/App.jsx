@@ -33,23 +33,28 @@ export default function App() {
     []
   );
 
-  const load = useCallback(async () => {
+  // Only sets state once the requests settle, so it is safe to call from an effect.
+  const fetchRegister = useCallback(
+    () =>
+      Promise.all([api.listItems(), api.summary()])
+        .then(([list, sum]) => {
+          setItems(list);
+          setSummary(sum);
+        })
+        .catch((e) => setLoadError(e.message))
+        .finally(() => setLoading(false)),
+    []
+  );
+
+  const load = useCallback(() => {
     setLoading(true);
     setLoadError("");
-    try {
-      const [list, sum] = await Promise.all([api.listItems(), api.summary()]);
-      setItems(list);
-      setSummary(sum);
-    } catch (e) {
-      setLoadError(e.message);
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+    return fetchRegister();
+  }, [fetchRegister]);
 
   useEffect(() => {
-    load();
-  }, [load]);
+    fetchRegister();
+  }, [fetchRegister]);
 
   useEffect(() => {
     if (!toast) return undefined;
