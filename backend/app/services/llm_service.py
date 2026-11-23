@@ -18,6 +18,14 @@ MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
 CATEGORIES = {"Schedule", "Budget", "Scope", "Resource",
               "Technical", "Vendor", "Compliance", "Security"}
 
+BANKING_RULES = """Context: these are project delivery risks and issues in banking technology
+programmes such as core banking, payments, digital lending, KYC and AML, mobile banking
+and regulatory reporting. They are not the bank's credit, market or liquidity risks.
+When writing, consider customer impact, regulatory deadlines and compliance, data privacy
+and security, operational continuity, and controls such as approvals, testing and sign-off.
+Do not invent regulation names, circular numbers, dates or amounts that are not in the text.
+Keep mitigations practical for a bank programme team."""
+
 
 def suggest_text(title: str, description: str, category: str | None = None,
                  similar: list | None = None) -> dict:
@@ -25,6 +33,8 @@ def suggest_text(title: str, description: str, category: str | None = None,
         f"- {c['description']} -> mitigation: {c['mitigation']}" for c in (similar or [])
     ) or "none"
     prompt = f"""You are an expert project risk analyst in a bank programme office.
+{BANKING_RULES}
+
 Improve the record below. Return ONLY a JSON object with these keys:
 - standardised_description: one or two clear sentences covering cause, event and impact
 - suggested_category: one of Schedule, Budget, Scope, Resource, Technical, Vendor, Compliance, Security
@@ -52,6 +62,8 @@ def extract_items(text: str) -> list:
     prompt = f"""You are an expert project risk analyst in a bank programme office.
 Read the email or meeting notes below and find every project risk (something that
 might go wrong) and issue (something that has already gone wrong).
+{BANKING_RULES}
+
 Return ONLY a JSON object with one key "items": a list of at most 10 objects with these keys:
 - title: a short title, under 80 characters
 - description: one or two clear sentences covering cause, event and impact
