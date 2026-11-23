@@ -3,17 +3,18 @@ import re
 import json
 from pathlib import Path
 from dotenv import load_dotenv
-from openai import OpenAI
+from openai import AzureOpenAI
 
 load_dotenv(Path(__file__).resolve().parents[3] / ".env", override=True)
 
-client = OpenAI(
-    # A placeholder lets the server start without a key; only /suggest then fails.
-    api_key=os.getenv("GROQ_API_KEY") or "missing-key",
-    base_url="https://api.groq.com/openai/v1",
+client = AzureOpenAI(
+    # A placeholder lets the server start without a key; only the AI features then fail.
+    api_key=os.getenv("AZURE_OPENAI_API_KEY") or "missing-key",
+    azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT") or "https://missing-endpoint.openai.azure.com/",
+    api_version=os.getenv("AZURE_OPENAI_API_VERSION", "2024-10-21"),
 )
 
-MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-20b")
+MODEL = os.getenv("AZURE_OPENAI_DEPLOYMENT", "gpt-4o-mini")
 
 CATEGORIES = {"Schedule", "Budget", "Scope", "Resource",
               "Technical", "Vendor", "Compliance", "Security"}
