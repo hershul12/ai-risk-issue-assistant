@@ -1,6 +1,6 @@
 # RiskPilot: AI-Powered Project Risk & Issue Triage and Mitigation
 
-A governed risk and issue register for banking technology programmes. It scores records with a fixed formula, uses Azure OpenAI to extract risks from emails and draft descriptions and mitigation plans grounded in past banking risks and the bank's own policies, and requires review and approval before a record is closed.
+A governed risk and issue register for banking technology programmes. It scores records with a fixed formula, uses Azure OpenAI to extract risks from emails and draft structured mitigation plans grounded in past banking risks and the bank's own policies, and requires review and approval before a record is closed.
 
 **Domain:** Financial Risk Management (banking technology programmes)
 **Users:** Project Manager, Risk/Issue Owner, Programme Lead
@@ -9,9 +9,11 @@ A governed risk and issue register for banking technology programmes. It scores 
 ## Features
 - Register with standard fields, owner, due date and status
 - Score = Probability x Impact (Low 1-5, Medium 6-12, High 13-19, Critical 20-25)
-- Draft with AI: clearer description, category, mitigation and follow-up actions
+- Draft with AI: structured risk assessment with cause, potential impact, warning indicators, and preventive, corrective and contingency actions
 - Import from text: AI finds risks and issues in emails or meeting notes
-- RAG: AI uses similar past banking risks and uploaded bank policy PDFs as context
+- RAG: AI uses similar past banking risks and uploaded bank policy PDFs as context, citing the policy and page
+- Citation guard: unsupported policy, page and regulation citations are removed before the user sees them
+- Scope check: out-of-scope text gets a clear fallback message instead of an AI draft
 - Review workflow: Open -> In Progress -> Pending Review -> Closed
 - Role-based permissions and full audit log
 - Dashboard with filters and a 5 x 5 risk matrix
@@ -55,6 +57,20 @@ cd backend
 pip install -r requirements-dev.txt
 pytest
 ```
+46 tests run with the AI mocked, so Azure is never called in tests.
+
+## AI Evaluation
+The AI was evaluated on 15 test cases against Azure OpenAI, with an AI-assisted first pass and a final human review.
+
+| Check | Result |
+|-------|--------|
+| Reviewer accepted (all cases) | 14/15 (93%) |
+| In-scope drafts accepted | 9/10 (90%) |
+| Out-of-scope cases with correct fallback | 3/3 (100%) |
+| Adversarial cases handled | 2/2 (100%) |
+| Unsupported citations in final drafts | 0 |
+
+Full results, before/after comparison and how to re-run: `docs/evaluation.md`. The sample policy used is `data/sample_policies/Vendor_Management_Policy.pdf` (synthetic, not a real bank policy).
 
 ## CI/CD (GitHub Actions)
 - **CI** (`.github/workflows/ci.yml`, on pull requests): backend lint + pytest, frontend lint + build, Docker build with a `/health` smoke test.
@@ -70,4 +86,4 @@ pytest
 - [ ] Day 34: Deployment and testing
 - [ ] Day 35: Demo and documentation
 
-See `docs/` for the problem statement, requirements and architecture.
+See `docs/` for the problem statement, requirements, architecture and AI evaluation.
