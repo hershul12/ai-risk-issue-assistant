@@ -75,6 +75,7 @@ export default function NewRecordModal({ role, initial, onClose, onCreated }) {
   const [suggestion, setSuggestion] = useState(null);
   const [similar, setSimilar] = useState([]);
   const [policies, setPolicies] = useState([]);
+  const [citationWarnings, setCitationWarnings] = useState([]);
   const [draftError, setDraftError] = useState("");
 
   const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
@@ -101,6 +102,7 @@ export default function NewRecordModal({ role, initial, onClose, onCreated }) {
       const r = res.result || {};
       setSimilar(res.similar || []);
       setPolicies(res.policies || []);
+      setCitationWarnings(Array.isArray(res.citation_warnings) ? res.citation_warnings : []);
       if (!r.standardised_description && !r.suggested_mitigation) {
         setDraftError("The AI reply could not be read. Try drafting again.");
       } else {
@@ -204,6 +206,22 @@ export default function NewRecordModal({ role, initial, onClose, onCreated }) {
           {suggestion && (
             <div className="suggestion span-2" aria-live="polite">
               <p className="suggestion-title">AI suggestion. Review before you use it.</p>
+              {citationWarnings.length > 0 && (
+                <div role="note">
+                  <p className="label">Citations not supported by the policy extracts</p>
+                  <p className="hint">
+                    The AI cited sources it was not given, or a page that does not cover the action.
+                    These were removed from the draft below where they appeared as a citation.
+                  </p>
+                  <ul>
+                    {citationWarnings.map((w, i) => (
+                      <li key={i}>
+                        <strong>{w.citation}</strong>: {w.reason}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
               {suggestion.standardised_description && (
                 <div>
                   <p className="label">Clearer description</p>

@@ -123,5 +123,46 @@ def test_suggest_returns_structured_assessment(client, monkeypatch):
         assert key in prompts[0]
 
 
+def test_suggest_removes_unsupported_citations(client, monkeypatch):
+    """An invented policy and a placeholder circular are removed and reported; no Azure call."""
+    import json
+    from types import SimpleNamespace
+
+    from app.services import llm_service
+
+    reply = {
+        "standardised_description": "Loan disbursements can skip the second approver.",
+        "suggested_category": "Compliance",
+        "suggested_mitigation": "Enforce dual approval in the loan system.",
+        "follow_up_actions": ["Retest approvals"],
+        "preventive_actions": [
+            "Add dual approval during design (aligned with RBI/2023-24/xx)",
+            "Train approvers on limits",
+        ],
+        "corrective_actions": [
+            "Block release of large disbursements (as required by internal Credit Policy, page 4)."
+        ],
+    }
+
+    def fake_create(**kwargs):
+        message = SimpleNamespace(content=json.dumps(reply))
+        return SimpleNamespace(choices=[SimpleNamespace(message=message)])
+
+    monkeypatch.setattr(llm_service, "client", SimpleNamespace(
+        chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
+    ))
+
+    res = client.post("/suggest", json={
+        "title": "Loan approval gap",
+        "description": "Loan disbursements above the limit can be released without a second approver.",
+    })
+    assert res.status_code == 200
+    body = res.json()
+    assert body["result"]["preventive_actions"] == ["Add dual approval during design", "Train approvers on limits"]
+    assert body["result"]["corrective_actions"] == ["Block release of large disbursements."]
+    cited = {w["citation"] for w in body["citation_warnings"]}
+    assert cited == {"RBI/2023-24/xx", "Credit Policy, page 4"}
+
+
 def test_missing_item_returns_404(client):
     assert client.get("/items/999999").status_code == 404

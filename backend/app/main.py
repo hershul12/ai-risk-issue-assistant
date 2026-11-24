@@ -12,6 +12,7 @@ from app.database import Base, SessionLocal, engine, get_db
 from app.models import utcnow
 from app.scoring import calculate_score, get_priority, is_overdue
 from app.seed import seed_if_empty
+from app.services.citation_service import verify_citations
 from app.services.llm_service import extract_items, suggest_text
 from app.services.policy_service import (
     MAX_BYTES, mark_dirty, pdf_to_passages, search_policies,
@@ -266,12 +267,16 @@ def suggest(data: schemas.SuggestRequest, db: Session = Depends(get_db)):
         )
     except Exception:
         raise ai_error("draft a suggestion")
+    result, citation_warnings = verify_citations(
+        result, policies, f"{data.title} {data.description}"
+    )
     return {
         "suggestion": True,
         "note": "AI-generated suggestion. A human must review it before saving.",
         "result": result,
         "similar": similar_cases,
         "policies": policies,
+        "citation_warnings": citation_warnings,
     }
 
 
