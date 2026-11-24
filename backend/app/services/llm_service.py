@@ -44,6 +44,15 @@ Improve the record below. Return ONLY a JSON object with these keys:
 - suggested_category: one of Schedule, Budget, Scope, Resource, Technical, Vendor, Compliance, Security
 - suggested_mitigation: a short, practical mitigation or resolution plan
 - follow_up_actions: a list of exactly 3 short follow-up actions
+- cause: one sentence on why the risk or issue exists
+- potential_impact: one or two sentences on what happens if it occurs (customer,
+  regulatory, financial and delivery impact where relevant)
+- warning_indicators: a list of 2 to 3 short early warning signs
+- preventive_actions: a list of 2 to 3 actions to stop it happening
+- corrective_actions: a list of 2 to 3 actions to fix it if it happens
+- contingency_plan: one or two sentences describing the fallback plan
+Preventive and corrective actions must follow any relevant policy extract below and
+name the policy and page when one applies.
 
 Title: {title or "not given"}
 Category given by the user: {category or "not given"}

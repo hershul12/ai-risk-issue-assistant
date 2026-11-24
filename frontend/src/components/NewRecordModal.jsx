@@ -13,6 +13,40 @@ function inDays(n) {
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 }
 
+// The AI may return a list, a single string, or nothing. Always give back a list of strings.
+function toList(value) {
+  if (Array.isArray(value)) {
+    return value
+      .map((v) => (typeof v === "string" ? v : v && typeof v === "object" ? Object.values(v).join(" ") : String(v ?? "")))
+      .map((v) => v.trim())
+      .filter(Boolean);
+  }
+  if (typeof value === "string") {
+    return value
+      .split("\n")
+      .map((line) => line.replace(/^\s*(?:[-*•]|\d+[.)])\s*/, "").trim())
+      .filter(Boolean);
+  }
+  return [];
+}
+
+// The AI may return a string, a list, or nothing. Always give back a single string.
+function toText(value) {
+  if (typeof value === "string") return value.trim();
+  if (Array.isArray(value)) return toList(value).join(" ");
+  return "";
+}
+
+// Sections of the structured assessment, in the order they are shown and copied.
+const ASSESSMENT = [
+  { key: "cause", label: "Cause", list: false },
+  { key: "potential_impact", label: "Potential impact", list: false },
+  { key: "warning_indicators", label: "Warning indicators", list: true },
+  { key: "preventive_actions", label: "Preventive actions", list: true },
+  { key: "corrective_actions", label: "Corrective actions", list: true },
+  { key: "contingency_plan", label: "Contingency plan", list: false },
+];
+
 function validate(f) {
   const problems = [];
   if (f.title.trim().length < 3) problems.push("Enter a title of at least 3 characters.");
@@ -79,14 +113,25 @@ export default function NewRecordModal({ role, initial, onClose, onCreated }) {
     }
   }
 
-  const actions = suggestion && Array.isArray(suggestion.follow_up_actions)
-    ? suggestion.follow_up_actions.map((a) => (typeof a === "string" ? a : Object.values(a).join(" ")))
+  const actions = suggestion ? toList(suggestion.follow_up_actions) : [];
+  const mitigationText = suggestion ? toText(suggestion.suggested_mitigation) : "";
+
+  // Only the sections the AI actually returned, normalised for display and copying.
+  const assessment = suggestion
+    ? ASSESSMENT.map((s) => ({
+        ...s,
+        value: s.list ? toList(suggestion[s.key]) : toText(suggestion[s.key]),
+      })).filter((s) => s.value.length > 0)
     : [];
 
   function useMitigation() {
-    let text = suggestion.suggested_mitigation || "";
-    if (actions.length) text += `\n\nFollow-up actions:\n${actions.map((a) => `- ${a}`).join("\n")}`;
-    set("mitigation", text.trim());
+    const sections = assessment.map((s) =>
+      s.list ? `${s.label}:\n${s.value.map((v) => `- ${v}`).join("\n")}` : `${s.label}:\n${s.value}`
+    );
+    // Older-style replies without the structured fields still copy the mitigation summary.
+    if (!assessment.length && mitigationText) sections.push(`Mitigation:\n${mitigationText}`);
+    if (actions.length) sections.push(`Follow-up actions:\n${actions.map((a) => `- ${a}`).join("\n")}`);
+    set("mitigation", sections.join("\n\n"));
   }
 
   async function submit(e) {
@@ -200,18 +245,30 @@ export default function NewRecordModal({ role, initial, onClose, onCreated }) {
                   <ul>{similar.map((c) => <li key={c.id}>{c.description}</li>)}</ul>
                 </div>
               )}
-              {suggestion.suggested_mitigation && (
+              {assessment.map((s) => (
+                <div key={s.key}>
+                  <p className="label">{s.label}</p>
+                  {s.list ? (
+                    <ul>{s.value.map((v, i) => <li key={i}>{v}</li>)}</ul>
+                  ) : (
+                    <p>{s.value}</p>
+                  )}
+                </div>
+              ))}
+              {(mitigationText || actions.length > 0) && (
                 <div>
                   <p className="label">Mitigation and follow-up actions</p>
-                  <p>{suggestion.suggested_mitigation}</p>
+                  {mitigationText && <p>{mitigationText}</p>}
                   {actions.length > 0 && (
                     <ul>{actions.map((a, i) => <li key={i}>{a}</li>)}</ul>
                   )}
-                  <div className="block-actions">
-                    <button type="button" className="btn btn-ghost btn-small" onClick={useMitigation}>
-                      Use mitigation and actions
-                    </button>
-                  </div>
+                </div>
+              )}
+              {(assessment.length > 0 || mitigationText || actions.length > 0) && (
+                <div className="block-actions">
+                  <button type="button" className="btn btn-ghost btn-small" onClick={useMitigation}>
+                    Use mitigation and actions
+                  </button>
                 </div>
               )}
             </div>
