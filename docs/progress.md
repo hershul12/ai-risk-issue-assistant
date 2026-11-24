@@ -38,3 +38,6 @@ Day 34 - In progress:
 - Citation guard: unsupported policy, page and regulation citations removed
 - Scope check: out-of-scope text gets a fallback message instead of a draft
 - AI evaluation: 15 cases, human review 14/15 accepted, fallback 3/3, adversarial 2/2 (docs/evaluation.md)
+- Locust load test: 20 users for 1 minute, p95 29 ms, 0.18% errors (docs/testing.md)
+- App screenshots for documentation and slides (docs/screenshots)
+- Pending: Azure hosting (sandbox policy blocks Azure PostgreSQL; deployment target being confirmed with the trainer)
