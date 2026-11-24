@@ -30,7 +30,11 @@ Day 33 - Completed:
 Day 34 - In progress:
 - AI moved from Groq to Azure OpenAI
 - Backend containerised with Docker and tested locally
-- Backend tests with pytest (scoring, roles, review workflow, audit log)
+- Backend tests with pytest (scoring, roles, review workflow, audit log, scope check, citation guard)
 - CI/CD with GitHub Actions: lint, tests, frontend build, Docker smoke test, image published to GHCR, Azure deploy steps ready
 - Dependabot for weekly dependency updates; Python packages pinned
 - Hardening: container runs as non-root, AI errors no longer expose internal details
+- Structured AI output: cause, potential impact, warning indicators, preventive, corrective and contingency actions
+- Citation guard: unsupported policy, page and regulation citations removed
+- Scope check: out-of-scope text gets a fallback message instead of a draft
+- AI evaluation: 15 cases, human review 14/15 accepted, fallback 3/3, adversarial 2/2 (docs/evaluation.md)
