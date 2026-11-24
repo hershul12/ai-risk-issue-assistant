@@ -77,8 +77,9 @@ export default function NewRecordModal({ role, initial, onClose, onCreated }) {
   const [policies, setPolicies] = useState([]);
   const [citationWarnings, setCitationWarnings] = useState([]);
   const [draftError, setDraftError] = useState("");
+  const [scopeMessage, setScopeMessage] = useState("");
 
-  const set = (key, value) => setForm((f) => ({ ...f, [key]: value }));
+  const set =(key, value) => setForm((f) => ({ ...f, [key]: value }));
   const score = Number(form.probability) * Number(form.impact);
 
   useEffect(() => {
@@ -93,6 +94,7 @@ export default function NewRecordModal({ role, initial, onClose, onCreated }) {
     setDrafting(true);
     setSuggestion(null);
     setDraftError("");
+    setScopeMessage("");
     try {
       const res = await api.suggest({
         title: form.title,
@@ -103,7 +105,10 @@ export default function NewRecordModal({ role, initial, onClose, onCreated }) {
       setSimilar(res.similar || []);
       setPolicies(res.policies || []);
       setCitationWarnings(Array.isArray(res.citation_warnings) ? res.citation_warnings : []);
-      if (!r.standardised_description && !r.suggested_mitigation) {
+      if (res.found === false) {
+        // Out of scope: no draft. The form stays as it is for manual entry.
+        setScopeMessage(res.message || "This does not look like a banking programme risk or issue.");
+      } else if (!r.standardised_description && !r.suggested_mitigation) {
         setDraftError("The AI reply could not be read. Try drafting again.");
       } else {
         setSuggestion(r);
@@ -202,6 +207,13 @@ export default function NewRecordModal({ role, initial, onClose, onCreated }) {
           </div>
 
           {draftError && <div className="problems span-2" role="alert">{draftError}</div>}
+
+          {scopeMessage && (
+            <div className="suggestion span-2" role="status" aria-live="polite">
+              <p className="suggestion-title">No AI draft</p>
+              <p>{scopeMessage}</p>
+            </div>
+          )}
 
           {suggestion && (
             <div className="suggestion span-2" aria-live="polite">

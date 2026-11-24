@@ -73,13 +73,8 @@ def test_ai_errors_do_not_leak_details(client, monkeypatch):
     assert "INTERNAL-DETAIL" not in res.text
 
 
-def test_suggest_returns_structured_assessment(client, monkeypatch):
-    """Fake the Azure OpenAI client so the real prompt and JSON parsing run without a network call."""
-    import json
-    from types import SimpleNamespace
-
-    from app.services import llm_service
-
+def test_suggest_returns_structured_assessment(client, fake_ai):
+    """Fake the Azure OpenAI client so the real prompts and JSON parsing run without a network call."""
     reply = {
         "standardised_description": "Vendor delay may push back the payments go-live.",
         "suggested_category": "Vendor",
@@ -92,15 +87,8 @@ def test_suggest_returns_structured_assessment(client, monkeypatch):
         "corrective_actions": ["Bring in a second vendor team", "Re-plan the release"],
         "contingency_plan": "Keep the legacy payments system running until the new one is stable.",
     }
-    prompts = []
-
-    def fake_create(**kwargs):
-        prompts.append(kwargs["messages"][0]["content"])
-        message = SimpleNamespace(content="Here you go:\n" + json.dumps(reply))
-        return SimpleNamespace(choices=[SimpleNamespace(message=message)])
-
-    fake_client = SimpleNamespace(chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create)))
-    monkeypatch.setattr(llm_service, "client", fake_client)
+    import json
+    calls = fake_ai(draft_reply="Here you go:\n" + json.dumps(reply))
 
     res = client.post("/suggest", json={
         "title": "Vendor delay",
@@ -108,6 +96,7 @@ def test_suggest_returns_structured_assessment(client, monkeypatch):
         "category": "Vendor",
     })
     assert res.status_code == 200
+    assert res.json()["found"] is True
     result = res.json()["result"]
     for key in ("cause", "potential_impact", "warning_indicators", "preventive_actions",
                 "corrective_actions", "contingency_plan"):
@@ -116,20 +105,15 @@ def test_suggest_returns_structured_assessment(client, monkeypatch):
     for key in ("standardised_description", "suggested_category",
                 "suggested_mitigation", "follow_up_actions"):
         assert result[key] == reply[key]
-    # The prompt asks for the new keys.
-    assert len(prompts) == 1
+    # Scope check first, then one draft prompt that asks for the new keys.
+    assert [kind for kind, _ in calls] == ["scope", "draft"]
     for key in ("cause", "potential_impact", "warning_indicators", "preventive_actions",
                 "corrective_actions", "contingency_plan"):
-        assert key in prompts[0]
+        assert key in calls[1][1]
 
 
-def test_suggest_removes_unsupported_citations(client, monkeypatch):
+def test_suggest_removes_unsupported_citations(client, fake_ai):
     """An invented policy and a placeholder circular are removed and reported; no Azure call."""
-    import json
-    from types import SimpleNamespace
-
-    from app.services import llm_service
-
     reply = {
         "standardised_description": "Loan disbursements can skip the second approver.",
         "suggested_category": "Compliance",
@@ -143,14 +127,7 @@ def test_suggest_removes_unsupported_citations(client, monkeypatch):
             "Block release of large disbursements (as required by internal Credit Policy, page 4)."
         ],
     }
-
-    def fake_create(**kwargs):
-        message = SimpleNamespace(content=json.dumps(reply))
-        return SimpleNamespace(choices=[SimpleNamespace(message=message)])
-
-    monkeypatch.setattr(llm_service, "client", SimpleNamespace(
-        chat=SimpleNamespace(completions=SimpleNamespace(create=fake_create))
-    ))
+    fake_ai(draft_reply=reply)
 
     res = client.post("/suggest", json={
         "title": "Loan approval gap",

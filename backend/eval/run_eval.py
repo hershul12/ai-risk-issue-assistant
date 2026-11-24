@@ -23,6 +23,8 @@ import httpx
 
 ROOT = Path(__file__).resolve().parents[2]
 CASES_PATH = Path(__file__).resolve().parent / "cases.json"
+BASELINE_PATH = Path(__file__).resolve().parent / "baseline.json"
+BASELINE_RESULTS_PATH = Path(__file__).resolve().parent / "baseline_results.md"
 OUT_PATH = ROOT / "docs" / "evaluation.md"
 
 STRUCTURED_FIELDS = [
@@ -167,13 +169,17 @@ def run_case(client, case):
     policies = body.get("policies") or []
     citation_warnings = body.get("citation_warnings") or []
     returned_category = result.get("suggested_category")
+    # found=false means the backend judged the text out of scope and returned no draft.
+    found = None if error else body.get("found", True) is not False
+    expect_draft = case["type"] != "no_match"
 
     allowed = {case.get("expected_category"), *case.get("acceptable_categories", [])} - {None}
     category_ok = (returned_category in allowed) if case.get("expected_category") else None
     exact_category = (returned_category == case.get("expected_category")) if case.get("expected_category") else None
 
     missing = [f for f in STRUCTURED_FIELDS if not is_present(result.get(f))]
-    fields_ok = not error and not missing
+    fields_ok = (not error and not missing) if expect_draft else None
+    accepted_ok = bool(found) if expect_draft else None
 
     page = case.get("expected_policy_page")
     actions_text = " ".join(as_list(result.get("preventive_actions")) + as_list(result.get("corrective_actions")))
@@ -183,7 +189,13 @@ def run_case(client, case):
     else:
         retrieved_ok = cited_ok = None
 
-    no_match_ok = (not similar and not policies) if case["type"] == "no_match" else None
+    # A no-match case passes only on the fallback: found=false with nothing retrieved or drafted.
+    if case["type"] == "no_match":
+        no_match_ok = found is False and not similar and not policies and not any(
+            is_present(result.get(f)) for f in STRUCTURED_FIELDS
+        )
+    else:
+        no_match_ok = None
 
     all_text = " ".join(as_text(v) for v in result.values())
     reg_context = regulation_refs_in_context(result)
@@ -204,6 +216,9 @@ def run_case(client, case):
         "returned_category": returned_category or "-",
         "category_ok": category_ok,
         "exact_category": exact_category,
+        "found": found,
+        "message": body.get("message", ""),
+        "accepted_ok": accepted_ok,
         "missing": missing,
         "fields_ok": fields_ok,
         "retrieved_ok": retrieved_ok,
@@ -224,16 +239,83 @@ def run_case(client, case):
 
 # ---------- report ----------
 
-def build_report(rows, base_url, policy_note, started):
+SUMMARY_LABELS = [
+    ("category_ok", "Category acceptable (in scope + adversarial)"),
+    ("category_exact", "Category exactly as expected (in scope)"),
+    ("accepted", "Genuine cases drafted, not wrongly rejected (in scope + adversarial)"),
+    ("fields", "All structured fields present (in scope + adversarial)"),
+    ("page_retrieved", "Expected policy page retrieved"),
+    ("page_cited", "Expected policy page cited in preventive/corrective actions"),
+    ("no_match", "No-match: fallback (found=false, nothing retrieved or drafted)"),
+    ("adversarial", "Adversarial: stayed a normal assessment"),
+    ("no_reg_refs", "No regulation numbers flagged in the final draft"),
+    ("no_unsupported", "Drafts with no unsupported citations from the AI"),
+    ("citations_caught", "Unsupported citations caught by the backend check"),
+    ("avg_time", "Average response time"),
+    ("p95_time", "p95 response time"),
+]
+
+
+def summarise(rows):
     in_scope = [r for r in rows if r["case"]["type"] == "in_scope"]
     with_page = [r for r in rows if r["case"].get("expected_policy_page")]
     no_match = [r for r in rows if r["case"]["type"] == "no_match"]
     adversarial = [r for r in rows if r["case"]["type"] == "adversarial"]
-    ai_rows = [r for r in rows if not r["error"]]
+    genuine = in_scope + adversarial
+    drafts = [r for r in rows if not r["error"] and r["found"]]
     times = [r["seconds"] for r in rows]
 
     def count(items, key):
         return sum(1 for r in items if r[key])
+
+    return {
+        "category_ok": pct(count(genuine, "category_ok"), len(genuine)),
+        "category_exact": pct(count(in_scope, "exact_category"), len(in_scope)),
+        "accepted": pct(count(genuine, "accepted_ok"), len(genuine)),
+        "fields": pct(count(genuine, "fields_ok"), len(genuine)),
+        "page_retrieved": pct(count(with_page, "retrieved_ok"), len(with_page)),
+        "page_cited": pct(count(with_page, "cited_ok"), len(with_page)),
+        "no_match": pct(count(no_match, "no_match_ok"), len(no_match)),
+        "adversarial": pct(count(adversarial, "adversarial_ok"), len(adversarial)),
+        "no_reg_refs": pct(sum(1 for r in drafts if not r["reg_refs"]), len(drafts)),
+        "no_unsupported": pct(sum(1 for r in drafts if not r["citation_warnings"]), len(drafts)),
+        "citations_caught": str(sum(len(r["citation_warnings"]) for r in rows)),
+        "avg_time": f"{statistics.mean(times):.1f} s",
+        "p95_time": f"{p95(times):.1f} s",
+    }
+
+
+def before_fixes_section(summary):
+    """Earlier runs from baseline.json, side by side with this run, plus the original results."""
+    if not BASELINE_PATH.is_file():
+        return []
+    baseline = json.loads(BASELINE_PATH.read_text(encoding="utf-8"))
+    runs = baseline["runs"]
+    lines = [
+        "## Before fixes",
+        "",
+        baseline.get("intro", ""),
+        "",
+        "| Check | " + " | ".join(r["label"] for r in runs) + " | This run |",
+        "|---|" + "---|" * (len(runs) + 1),
+    ]
+    for key, label in SUMMARY_LABELS:
+        values = [r["summary"].get(key, "n/a") for r in runs]
+        lines.append(f"| {label} | " + " | ".join(values) + f" | {summary[key]} |")
+    lines.append("")
+    for r in runs:
+        if r.get("findings"):
+            lines += [f"**{r['label']}:**", ""] + [f"- {f}" for f in r["findings"]] + [""]
+    if BASELINE_RESULTS_PATH.is_file():
+        lines += [BASELINE_RESULTS_PATH.read_text(encoding="utf-8").strip(), ""]
+    return lines
+
+
+def build_report(rows, base_url, policy_note, started):
+    in_scope = [r for r in rows if r["case"]["type"] == "in_scope"]
+    no_match = [r for r in rows if r["case"]["type"] == "no_match"]
+    adversarial = [r for r in rows if r["case"]["type"] == "adversarial"]
+    summary = summarise(rows)
 
     lines = [
         "# AI Evaluation: Draft with AI",
@@ -253,6 +335,7 @@ def build_report(rows, base_url, policy_note, started):
         "Re-running overwrites this file, including the reviewer column.",
         "",
         "Test cases: `backend/eval/cases.json`. Cases are sent without a category, so the AI must choose one.",
+        "Earlier runs for the \"Before fixes\" section: `backend/eval/baseline.json` and `baseline_results.md`.",
         "",
         "## Run details",
         "",
@@ -266,18 +349,7 @@ def build_report(rows, base_url, policy_note, started):
         "",
         "| Check | Result |",
         "|---|---|",
-        f"| Category acceptable (in scope + adversarial) | {pct(count(in_scope + adversarial, 'category_ok'), len(in_scope + adversarial))} |",
-        f"| Category exactly as expected (in scope) | {pct(count(in_scope, 'exact_category'), len(in_scope))} |",
-        f"| All structured fields present (all cases) | {pct(count(rows, 'fields_ok'), len(rows))} |",
-        f"| Expected policy page retrieved | {pct(count(with_page, 'retrieved_ok'), len(with_page))} |",
-        f"| Expected policy page cited in preventive/corrective actions | {pct(count(with_page, 'cited_ok'), len(with_page))} |",
-        f"| No-match: no similar risks and no policies returned | {pct(count(no_match, 'no_match_ok'), len(no_match))} |",
-        f"| Adversarial: stayed a normal assessment | {pct(count(adversarial, 'adversarial_ok'), len(adversarial))} |",
-        f"| No regulation numbers flagged in the final draft (all AI replies) | {pct(sum(1 for r in ai_rows if not r['reg_refs']), len(ai_rows))} |",
-        f"| Drafts with no unsupported citations from the AI | {pct(sum(1 for r in ai_rows if not r['citation_warnings']), len(ai_rows))} |",
-        f"| Unsupported citations caught by the backend check | {sum(len(r['citation_warnings']) for r in rows)} |",
-        f"| Average response time | {statistics.mean(times):.1f} s |",
-        f"| p95 response time | {p95(times):.1f} s |",
+        *[f"| {label} | {summary[key]} |" for key, label in SUMMARY_LABELS],
         "",
         "## Results",
         "",
@@ -289,16 +361,24 @@ def build_report(rows, base_url, policy_note, started):
         "All checks run on the draft the user sees, after the backend has removed unsupported citations. "
         "Citations removed = what the backend check caught in the AI's raw reply.",
         "",
-        "| ID | Type | Time (s) | Similar | Policy | Expected cat. | AI cat. | Cat. OK | Fields | Exp. page | Page retrieved | Page cited | Pages cited | No-match OK | Adversarial OK | Reg. refs flagged | Citations removed | Mitigation (shortened) | Reviewer accepted (Y/N) |",
-        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+        "Found = whether the backend treated the text as in scope and drafted it (no = fallback message).",
+        "",
+        "| ID | Type | Time (s) | Found | Similar | Policy | Expected cat. | AI cat. | Cat. OK | Fields | Exp. page | Page retrieved | Page cited | Pages cited | No-match OK | Adversarial OK | Reg. refs flagged | Citations removed | Mitigation (shortened) | Reviewer accepted (Y/N) |",
+        "|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|---|",
     ]
     for r in rows:
         c = r["case"]
-        fields = "error: " + r["error"] if r["error"] else ("all" if r["fields_ok"] else "missing " + ", ".join(r["missing"]))
+        if r["error"]:
+            fields = "error: " + r["error"]
+        elif r["found"] is False:
+            fields = "fallback"
+        else:
+            fields = "all" if not r["missing"] else "missing " + ", ".join(r["missing"])
         lines.append("| " + " | ".join(cell(v) for v in [
             c["id"],
             c["type"].replace("_", " "),
             f"{r['seconds']:.1f}",
+            "-" if r["found"] is None else ("yes" if r["found"] else "no"),
             ", ".join(r["similar_categories"]) or "none",
             ", ".join(r["policy_pages"]) or "none",
             c.get("expected_category") or "-",
@@ -313,9 +393,11 @@ def build_report(rows, base_url, policy_note, started):
             mark(r["adversarial_ok"]),
             "; ".join(r["reg_refs"] + [f"forbidden: {p}" for p in r["forbidden_hits"]]) or "none",
             "; ".join(w.get("citation", "?") for w in r["citation_warnings"]) or "none",
-            shorten(r["mitigation"] or r["raw"] or "-"),
+            shorten(r["mitigation"] or r["raw"] or (f"Fallback: {r['message']}" if r["found"] is False else "-")),
             "",
         ]) + " |")
+    lines.append("")
+    lines += before_fixes_section(summary)
 
     lines += ["", "## Draft details for review", ""]
     for r in rows:
@@ -323,6 +405,9 @@ def build_report(rows, base_url, policy_note, started):
         lines += [f"### {c['id']}: {c['title']}", "", f"**Input:** {c['description']}", ""]
         if r["error"]:
             lines += [f"**Error:** {r['error']}", ""]
+            continue
+        if r["found"] is False:
+            lines += [f"**Fallback (no draft):** {r['message']}", ""]
             continue
         lines.append(f"**Mitigation:** {shorten(r['mitigation'], 400) or '-'}")
         lines.append("")
