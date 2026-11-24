@@ -231,8 +231,20 @@ def run_case(client, case):
         "forbidden_hits": forbidden_hits,
         "adversarial_ok": adversarial_ok,
         "mitigation": as_text(result.get("suggested_mitigation")),
+        "cause": as_text(result.get("cause")),
+        "potential_impact": as_text(result.get("potential_impact")),
+        "warning_indicators": as_list(result.get("warning_indicators")),
         "preventive": as_list(result.get("preventive_actions")),
         "corrective": as_list(result.get("corrective_actions")),
+        "contingency_plan": as_text(result.get("contingency_plan")),
+        "follow_up": as_list(result.get("follow_up_actions")),
+        # sample_risks.csv has no title column, so the risk is identified by id + description.
+        "similar_used": [
+            f"#{s.get('id', '?')} ({s.get('category', '?')}): {s.get('description', '')}" for s in similar
+        ],
+        "policies_used": [
+            f"{p.get('document', '?')}, page {p.get('page', '?')}: {p.get('text', '')}" for p in policies
+        ],
         "raw": result.get("raw_response"),
     }
 
@@ -409,6 +421,20 @@ def build_report(rows, base_url, policy_note, started):
         if r["found"] is False:
             lines += [f"**Fallback (no draft):** {r['message']}", ""]
             continue
+        lines.append("**Similar risks used:**" + ("" if r["similar_used"] else " none"))
+        lines += [f"- {shorten(s, 200)}" for s in r["similar_used"]]
+        lines.append("")
+        lines.append("**Policy passages used:**" + ("" if r["policies_used"] else " none"))
+        lines += [f"- {shorten(p, 300)}" for p in r["policies_used"]]
+        lines.append("")
+        lines.append(f"**Cause:** {shorten(r['cause'], 300) or '-'}")
+        lines.append("")
+        lines.append(f"**Potential impact:** {shorten(r['potential_impact'], 300) or '-'}")
+        lines.append("")
+        if r["warning_indicators"]:
+            lines.append("**Warning indicators:**")
+            lines += [f"- {shorten(a, 200)}" for a in r["warning_indicators"]]
+            lines.append("")
         lines.append(f"**Mitigation:** {shorten(r['mitigation'], 400) or '-'}")
         lines.append("")
         if r["preventive"]:
@@ -418,6 +444,12 @@ def build_report(rows, base_url, policy_note, started):
         if r["corrective"]:
             lines.append("**Corrective actions:**")
             lines += [f"- {shorten(a, 250)}" for a in r["corrective"]]
+            lines.append("")
+        lines.append(f"**Contingency plan:** {shorten(r['contingency_plan'], 300) or '-'}")
+        lines.append("")
+        if r["follow_up"]:
+            lines.append("**Follow-up actions:**")
+            lines += [f"- {shorten(a, 200)}" for a in r["follow_up"]]
             lines.append("")
         if r["citation_warnings"]:
             lines.append("**Citations removed by the backend check:**")
