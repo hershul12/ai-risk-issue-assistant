@@ -130,4 +130,4 @@ All routes are under `/api` (they also answer at the root path, for tools and te
 - [x] Day 34: Deployment and testing
 - [ ] Day 35: Demo and documentation
 
-See `docs/` for the problem statement, requirements, architecture and AI evaluation.
+See `docs/` for the problem statement, requirements, architecture and AI evaluation. Operations guide: [docs/runbook.md](docs/runbook.md). Lessons learned: [docs/learnings.md](docs/learnings.md).
