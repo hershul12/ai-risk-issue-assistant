@@ -18,6 +18,22 @@ A governed risk and issue register for banking technology programmes. It scores 
 - Role-based permissions and full audit log
 - Dashboard with filters and a 5 x 5 risk matrix
 
+## Architecture
+```mermaid
+flowchart LR
+    B["🌐 Browser"] --> C
+    subgraph C["Azure App Service: one container, one URL"]
+        R["React app<br/>served at /"]
+        F["FastAPI<br/>API under /api<br/>rules, roles, scoring"]
+        K["TF-IDF + FAISS<br/>similar past risks and<br/>policy passages"]
+        R -->|"/api"| F
+        F --> K
+    end
+    F --> DB[("Azure Database<br/>for PostgreSQL")]
+    F --> AI["Azure OpenAI"]
+```
+The browser loads the React app and calls the API on the same URL. FastAPI applies the rules, stores data in PostgreSQL, retrieves similar past risks and policy passages with TF-IDF + FAISS, and asks Azure OpenAI for drafts. Details: [docs/architecture.md](docs/architecture.md).
+
 ## Setup
 Create `.env` in the project root (see `.env.example`):
 ```
@@ -79,6 +95,26 @@ Full results, before/after comparison and how to re-run: `docs/evaluation.md`. T
 
 ## Deployment (Azure)
 RiskPilot is live on **Azure App Service** as one container: FastAPI serves the React app at `/` and the API under `/api`, on one URL. It uses **Azure Database for PostgreSQL** for records, history and policies, and **Azure OpenAI** for the AI features. **CD (GitHub Actions)** publishes the image to GHCR and deploys it to the Web App on every push to `master`. Azure Static Web Apps is not used, because it is blocked by the sandbox policy. A screenshot of the live app is in `docs/screenshots/06_live_azure.png`.
+
+## API Routes
+All routes are under `/api` (they also answer at the root path, for tools and tests). Routes that change data need an `X-Role` header (`Project Manager`, `Risk Owner` or `Programme Lead`). Interactive docs: `/docs`.
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| GET | `/api/health` | Health check: returns `{"status": "ok"}` |
+| GET | `/api/items` | List records, with optional filters (status, priority, owner, category, overdue) |
+| POST | `/api/items` | Create a record; score and priority are calculated (Project Manager only) |
+| GET | `/api/items/{item_id}` | Get one record |
+| PUT | `/api/items/{item_id}` | Edit a record; score is recalculated (Project Manager or Risk Owner, not when Closed) |
+| PATCH | `/api/items/{item_id}/status` | Change status through the review workflow, with an optional note |
+| GET | `/api/items/{item_id}/audit` | Full audit trail of a record: who changed what and when |
+| GET | `/api/dashboard/summary` | Totals for the dashboard: open, overdue, high priority, by status and by priority |
+| POST | `/api/suggest` | Draft with AI: scope check, then a structured draft grounded in similar risks and policies, with citations checked |
+| POST | `/api/extract` | Import from text: AI extracts risks and issues from an email or meeting notes as drafts |
+| GET | `/api/policies` | List uploaded policy PDFs |
+| POST | `/api/policies` | Upload a policy PDF (max 10 MB, text PDFs only; Project Manager only) |
+| DELETE | `/api/policies/{doc_id}` | Delete a policy and its passages (Project Manager only) |
+| POST | `/api/similar` | Find similar past banking risks for a description (TF-IDF + FAISS) |
 
 ## CI/CD (GitHub Actions)
 - **CI** (`.github/workflows/ci.yml`, on pull requests): backend lint + pytest, frontend lint + build, then the full Docker image (frontend + backend) with a smoke test: `GET /` returns the React page and its JS bundle, `GET /api/health` returns ok, and unknown `/api` paths return 404.

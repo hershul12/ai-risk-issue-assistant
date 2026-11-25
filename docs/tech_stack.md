@@ -10,7 +10,10 @@
 | Embeddings | TF-IDF (scikit-learn) |
 | Vector search | FAISS (similar past risks and bank policy passages) |
 | PDF reading | pypdf |
-| Cloud | Microsoft Azure |
+| Hosting | Azure App Service (one container: FastAPI serves the React app and the API) |
+| Cloud database | Azure Database for PostgreSQL |
+| Cloud AI | Azure OpenAI |
+| CI/CD | GitHub Actions (image published to GHCR, deployed to App Service) |
 | Version Control | Git and GitHub |
 | Containerization | Docker |
 | IDE | VS Code |

@@ -127,8 +127,8 @@ flowchart LR
 |------|--------|
 | AI on Azure OpenAI | Done |
 | Website and backend packaged in one Docker container | Done (tested locally: website, API and AI features) |
-| Database on Azure PostgreSQL | In progress |
-| Hosted on Azure App Service (one URL) | In progress (pipeline ready, deploys when the Azure settings are added) |
+| Database on Azure PostgreSQL | Done (deployed by CD) |
+| Hosted on Azure App Service (one URL) | Done (deployed by CD) |
 | Automatic testing and deployment (CI/CD) | Done (GitHub Actions: tests, full-app Docker smoke test, image to GHCR, Azure Web App deploy) |
 
 ## Deployment Notes
