@@ -77,10 +77,13 @@ The AI was evaluated on 15 test cases against Azure OpenAI, with an AI-assisted 
 
 Full results, before/after comparison and how to re-run: `docs/evaluation.md`. The sample policy used is `data/sample_policies/Vendor_Management_Policy.pdf` (synthetic, not a real bank policy).
 
+## Deployment (Azure)
+RiskPilot is live on **Azure App Service** as one container: FastAPI serves the React app at `/` and the API under `/api`, on one URL. It uses **Azure Database for PostgreSQL** for records, history and policies, and **Azure OpenAI** for the AI features. **CD (GitHub Actions)** publishes the image to GHCR and deploys it to the Web App on every push to `master`. Azure Static Web Apps is not used, because it is blocked by the sandbox policy. A screenshot of the live app is in `docs/screenshots/06_live_azure.png`.
+
 ## CI/CD (GitHub Actions)
 - **CI** (`.github/workflows/ci.yml`, on pull requests): backend lint + pytest, frontend lint + build, then the full Docker image (frontend + backend) with a smoke test: `GET /` returns the React page and its JS bundle, `GET /api/health` returns ok, and unknown `/api` paths return 404.
 - **CD** (`.github/workflows/cd.yml`, on push to `master` or a `v*` tag): runs CI, then pushes the app image to `ghcr.io/<owner>/<repo>/riskpilot-api` (tags `latest`, `sha-<commit>`, and the version for tags).
-- **Deploy to Azure App Service**: add the repo variable `AZURE_WEBAPP_NAME` and secret `AZURE_WEBAPP_PUBLISH_PROFILE` to deploy the image to the Azure Web App. Skipped until they are set. The website and API then share one URL (`https://<app>.azurewebsites.net`, API under `/api`). Set these app settings on the Web App: `WEBSITES_PORT=8000`, `AZURE_OPENAI_*` and `DATABASE_URL` (add `?sslmode=require` for Azure PostgreSQL). `ALLOWED_ORIGINS` is not needed because the website and API are on the same origin. Keep it at one instance (see `docs/architecture.md`).
+- **Deploy to Azure App Service**: runs on every push to `master`, using the repo variable `AZURE_WEBAPP_NAME` and secret `AZURE_WEBAPP_PUBLISH_PROFILE` (the job is skipped if they are not set). The website and API share one URL (`https://<app>.azurewebsites.net`, API under `/api`). Set these app settings on the Web App: `WEBSITES_PORT=8000`, `AZURE_OPENAI_*` and `DATABASE_URL` (add `?sslmode=require` for Azure PostgreSQL). `ALLOWED_ORIGINS` is not needed because the website and API are on the same origin. Keep it at one instance (see `docs/architecture.md`).
 - **Static Web Apps deploy**: disabled (`if: false`), because Static Web Apps is blocked by the sandbox policy. The job is kept in `cd.yml` for reference only.
 - **Dependabot** (`.github/dependabot.yml`): weekly update PRs for GitHub Actions, pip, npm and the Docker base image.
 
@@ -88,7 +91,7 @@ Full results, before/after comparison and how to re-run: `docs/evaluation.md`. T
 - [x] Day 31: Define and design
 - [x] Day 32: Backend and AI
 - [x] Day 33: Frontend and integration
-- [ ] Day 34: Deployment and testing
+- [x] Day 34: Deployment and testing
 - [ ] Day 35: Demo and documentation
 
 See `docs/` for the problem statement, requirements, architecture and AI evaluation.

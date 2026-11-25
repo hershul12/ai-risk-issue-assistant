@@ -27,7 +27,7 @@ Day 33 - Completed:
 - Banking scope: clearer problem statement, 48 banking programme risks, banking rules in AI prompts
 - Bank policy upload: AI mitigations follow uploaded policy PDFs and cite the page
 
-Day 34 - In progress:
+Day 34 - Completed:
 - AI moved from Groq to Azure OpenAI
 - Backend containerised with Docker and tested locally
 - Backend tests with pytest (scoring, roles, review workflow, audit log, scope check, citation guard)
@@ -40,4 +40,7 @@ Day 34 - In progress:
 - AI evaluation: 15 cases, human review 14/15 accepted, fallback 3/3, adversarial 2/2 (docs/evaluation.md)
 - Locust load test: 20 users for 1 minute, p95 29 ms, 0.18% errors (docs/testing.md)
 - App screenshots for documentation and slides (docs/screenshots)
-- Pending: Azure hosting (sandbox policy blocks Azure PostgreSQL; deployment target being confirmed with the trainer)
+- One container: FastAPI serves the React app at / and the API under /api (56 tests)
+- Deployed on Azure: App Service (one container), Azure PostgreSQL, Azure OpenAI
+- CD deploys automatically to the Web App on every push to master
+- Live screenshot of the deployed app (docs/screenshots/06_live_azure.png)
