@@ -123,11 +123,4 @@ All routes are under `/api` (they also answer at the root path, for tools and te
 - **Static Web Apps deploy**: disabled (`if: false`), because Static Web Apps is blocked by the sandbox policy. The job is kept in `cd.yml` for reference only.
 - **Dependabot** (`.github/dependabot.yml`): weekly update PRs for GitHub Actions, pip, npm and the Docker base image.
 
-## Project Plan
-- [x] Day 31: Define and design
-- [x] Day 32: Backend and AI
-- [x] Day 33: Frontend and integration
-- [x] Day 34: Deployment and testing
-- [ ] Day 35: Demo and documentation
-
 See `docs/` for the problem statement, requirements, architecture and AI evaluation. Operations guide: [docs/runbook.md](docs/runbook.md). Lessons learned: [docs/learnings.md](docs/learnings.md).
