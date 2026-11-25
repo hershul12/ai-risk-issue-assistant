@@ -80,21 +80,35 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build image
-        run: docker build -t riskpilot-api:ci .
+      - name: Build image (frontend + backend)
+        run: docker build -t riskpilot:ci .
 
       - name: Start container
-        run: docker run -d --name riskpilot -p 8000:8000 riskpilot-api:ci
+        run: docker run -d --name riskpilot -p 8000:8000 riskpilot:ci
 
-      - name: Check /health
+      - name: Check GET /api/health returns ok
         run: |
           for i in $(seq 1 30); do
-            if curl -fsS http://localhost:8000/health; then
-              echo; echo "API is healthy"; exit 0
+            if curl -fsS http://localhost:8000/api/health | grep -q '"status":"ok"'; then
+              echo "API is healthy"; exit 0
             fi
             sleep 2
           done
           echo "API did not become healthy"; docker logs riskpilot; exit 1
+
+      - name: Check GET / returns the React page
+        run: |
+          page=$(curl -fsS http://localhost:8000/)
+          echo "$page" | grep -q '<div id="root">' || { echo "GET / is not the React page"; echo "$page"; exit 1; }
+          asset=$(echo "$page" | grep -o '/assets/[^"]*\.js' | head -n 1)
+          test -n "$asset" || { echo "No JS bundle linked from the page"; exit 1; }
+          curl -fsS -o /dev/null "http://localhost:8000$asset"
+          echo "React page and $asset are served"
+
+      - name: Check unknown API paths stay JSON 404s
+        run: |
+          code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:8000/api/does-not-exist)
+          test "$code" = "404" || { echo "Expected 404, got $code"; exit 1; }
 
       - name: Stop container
         if: always()

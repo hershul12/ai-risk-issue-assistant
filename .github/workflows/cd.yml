@@ -19,7 +19,7 @@ jobs:
     uses: ./.github/workflows/ci.yml
 
   publish-image:
-    name: Publish backend image to GHCR
+    name: Publish app image to GHCR
     runs-on: ubuntu-latest
     needs: ci
     permissions:
@@ -62,12 +62,13 @@ jobs:
           cache-from: type=gha
           cache-to: type=gha,mode=max
 
+  # Deploys the single container (React app + API on one URL) to the Azure Web App.
   # Runs only once the Azure settings below exist in the repo, so it is skipped until then.
   #   Variable: AZURE_WEBAPP_NAME           (Settings > Secrets and variables > Actions > Variables)
   #   Secret:   AZURE_WEBAPP_PUBLISH_PROFILE (publish profile XML downloaded from the Web App)
   # The Web App must be a Linux container app that can pull from GHCR.
   deploy-azure:
-    name: Deploy backend to Azure Web App
+    name: Deploy app to Azure Web App
     runs-on: ubuntu-latest
     needs: publish-image
     if: ${{ vars.AZURE_WEBAPP_NAME != '' }}
@@ -83,14 +84,15 @@ jobs:
           publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE }}
           images: ${{ needs.publish-image.outputs.image }}:sha-${{ github.sha }}
 
-  # Deploys the frontend built by CI (with the VITE_API_URL repo variable baked in).
-  # Skipped until the repo variable DEPLOY_FRONTEND_TO_AZURE is "true" and the secret
-  # AZURE_STATIC_WEB_APPS_API_TOKEN (Static Web App > Manage deployment token) exists.
+  # DISABLED: Azure Static Web Apps is blocked by the sandbox policy. The React app is now
+  # built into the container and served by FastAPI from the Azure Web App (deploy-azure).
+  # Kept for reference only: `if: false` means it can never run, whatever repo variables
+  # are set. To re-enable, restore `if: ${{ vars.DEPLOY_FRONTEND_TO_AZURE == 'true' }}`.
   deploy-frontend:
-    name: Deploy frontend to Azure Static Web Apps
+    name: Deploy frontend to Azure Static Web Apps (disabled)
     runs-on: ubuntu-latest
     needs: ci
-    if: ${{ vars.DEPLOY_FRONTEND_TO_AZURE == 'true' }}
+    if: false
     environment:
       name: production-frontend
     steps:

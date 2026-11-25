@@ -1,4 +1,6 @@
-const BASE = import.meta.env.VITE_API_URL || "http://127.0.0.1:8000";
+// The API is on the same origin under /api: served by FastAPI in production, and
+// proxied to the local backend by the Vite dev server. VITE_API_URL overrides it.
+const BASE = (import.meta.env.VITE_API_URL || "/api").replace(/\/$/, "");
 
 function formatError(data, status) {
   if (data && typeof data.detail === "string") return data.detail;

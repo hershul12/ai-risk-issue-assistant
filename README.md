@@ -28,28 +28,33 @@ AZURE_OPENAI_API_VERSION=2024-10-21
 ```
 To use PostgreSQL, set `DATABASE_URL` before starting the backend. Without it, a local SQLite file is used.
 
-## Run the Backend
+## Run with Docker (whole app, one URL)
+One container serves both the website and the API, exactly as on Azure:
+```
+docker build -t riskpilot .
+docker run -d --name riskpilot --env-file .env -p 8000:8000 riskpilot
+```
+- Website: http://127.0.0.1:8000
+- API: http://127.0.0.1:8000/api (for example `/api/health`, `/api/items`)
+- API docs: http://127.0.0.1:8000/docs
+
+## Run for Development
+Backend (API on http://127.0.0.1:8000, also under `/api`):
 ```
 venv\Scripts\activate
 cd backend
 pip install -r requirements.txt
 uvicorn app.main:app --reload
 ```
-API docs: http://127.0.0.1:8000/docs
-
-## Run the Frontend
+Frontend with hot reload (http://localhost:5173), in a second terminal:
 ```
 cd frontend
 npm install
 npm run dev
 ```
-App: http://localhost:5173
+The website calls `/api` on its own origin; the Vite dev server forwards `/api` to the backend, so no API URL needs to be set. To point the website at a different backend, set `VITE_API_URL` (for example `VITE_API_URL=https://my-api.example.com/api`).
 
-## Run with Docker (backend)
-```
-docker build -t riskpilot-api .
-docker run -d --name riskpilot --env-file .env -p 8000:8000 riskpilot-api
-```
+If you build the frontend locally (`npm run build`), the backend also serves it at http://127.0.0.1:8000.
 
 ## Run the Tests
 ```
@@ -57,7 +62,7 @@ cd backend
 pip install -r requirements-dev.txt
 pytest
 ```
-46 tests run with the AI mocked, so Azure is never called in tests.
+56 tests run with the AI mocked, so Azure is never called in tests. Load test and test details: `docs/testing.md`.
 
 ## AI Evaluation
 The AI was evaluated on 15 test cases against Azure OpenAI, with an AI-assisted first pass and a final human review.
@@ -73,10 +78,10 @@ The AI was evaluated on 15 test cases against Azure OpenAI, with an AI-assisted 
 Full results, before/after comparison and how to re-run: `docs/evaluation.md`. The sample policy used is `data/sample_policies/Vendor_Management_Policy.pdf` (synthetic, not a real bank policy).
 
 ## CI/CD (GitHub Actions)
-- **CI** (`.github/workflows/ci.yml`, on pull requests): backend lint + pytest, frontend lint + build, Docker build with a `/health` smoke test.
-- **CD** (`.github/workflows/cd.yml`, on push to `master` or a `v*` tag): runs CI, then pushes the backend image to `ghcr.io/<owner>/<repo>/riskpilot-api` (tags `latest`, `sha-<commit>`, and the version for tags).
-- **Backend deploy** (optional): add the repo variable `AZURE_WEBAPP_NAME` and secret `AZURE_WEBAPP_PUBLISH_PROFILE` to deploy the image to an Azure Web App. Skipped until they are set. Set these app settings on the Web App: `WEBSITES_PORT=8000`, `AZURE_OPENAI_*`, `DATABASE_URL` (add `?sslmode=require` for Azure PostgreSQL) and `ALLOWED_ORIGINS` (the frontend URL). Keep it at one instance (see `docs/architecture.md`).
-- **Frontend deploy** (optional): set the repo variable `VITE_API_URL` (the backend URL), the variable `DEPLOY_FRONTEND_TO_AZURE=true` and the secret `AZURE_STATIC_WEB_APPS_API_TOKEN` to deploy to Azure Static Web Apps. Skipped until they are set.
+- **CI** (`.github/workflows/ci.yml`, on pull requests): backend lint + pytest, frontend lint + build, then the full Docker image (frontend + backend) with a smoke test: `GET /` returns the React page and its JS bundle, `GET /api/health` returns ok, and unknown `/api` paths return 404.
+- **CD** (`.github/workflows/cd.yml`, on push to `master` or a `v*` tag): runs CI, then pushes the app image to `ghcr.io/<owner>/<repo>/riskpilot-api` (tags `latest`, `sha-<commit>`, and the version for tags).
+- **Deploy to Azure App Service**: add the repo variable `AZURE_WEBAPP_NAME` and secret `AZURE_WEBAPP_PUBLISH_PROFILE` to deploy the image to the Azure Web App. Skipped until they are set. The website and API then share one URL (`https://<app>.azurewebsites.net`, API under `/api`). Set these app settings on the Web App: `WEBSITES_PORT=8000`, `AZURE_OPENAI_*` and `DATABASE_URL` (add `?sslmode=require` for Azure PostgreSQL). `ALLOWED_ORIGINS` is not needed because the website and API are on the same origin. Keep it at one instance (see `docs/architecture.md`).
+- **Static Web Apps deploy**: disabled (`if: false`), because Static Web Apps is blocked by the sandbox policy. The job is kept in `cd.yml` for reference only.
 - **Dependabot** (`.github/dependabot.yml`): weekly update PRs for GitHub Actions, pip, npm and the Docker base image.
 
 ## Project Plan

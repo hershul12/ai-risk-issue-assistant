@@ -1,7 +1,18 @@
 .git
+.github
 .env
+.env.*
+!.env.example
 venv
 **/__pycache__
+**/.pytest_cache
+**/.ruff_cache
 data/*.db
-frontend
 backend/tests/*.db
+backend/loadtest/results
+
+# The frontend source is needed for the build stage, but not local installs or builds
+frontend/node_modules
+frontend/dist
+frontend/.env*
+frontend/*.local

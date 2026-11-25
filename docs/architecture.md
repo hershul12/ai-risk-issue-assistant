@@ -8,8 +8,10 @@ fix and approve project risks and issues in one place.
 ```mermaid
 flowchart LR
     USER["👤 Users<br/>Project Manager<br/>Risk Owner<br/>Programme Lead"]
-    WEB["🖥️ Website<br/>React"]
-    API["⚙️ Backend<br/>FastAPI in Docker<br/>rules, roles, scoring"]
+    subgraph APP["☁️ Azure App Service: one container, one URL"]
+        WEB["🖥️ Website<br/>React, served at /"]
+        API["⚙️ Backend<br/>FastAPI at /api<br/>rules, roles, scoring"]
+    end
     DB[("🗄️ Database<br/>PostgreSQL<br/>records, history,<br/>policies")]
     AI["🤖 AI<br/>Azure OpenAI<br/>writes drafts"]
     KB["📚 Knowledge<br/>48 past banking risks<br/>+ uploaded bank policies"]
@@ -23,14 +25,16 @@ flowchart LR
 
 **In one sentence:** users work on the website, the website only talks to the
 backend, and the backend does everything else: it applies the rules, saves the
-data, finds relevant knowledge, and asks the AI for drafts.
+data, finds relevant knowledge, and asks the AI for drafts. Website and backend
+run in one container on one URL.
 
 ## The Parts
 
 | Part | Technology | What it does |
 |------|------------|--------------|
-| Website | React | What users see and click: dashboard, register, forms, review |
-| Backend | Python FastAPI, in a Docker container | The brain: checks data, enforces roles and workflow, calculates scores, records history |
+| Website | React (Vite build) | What users see and click: dashboard, register, forms, review. Built into the container and served by FastAPI |
+| Backend | Python FastAPI | The brain: checks data, enforces roles and workflow, calculates scores, records history. API under `/api` |
+| Hosting | One Docker container on Azure App Service | Website and API on one URL, so no cross-origin setup is needed |
 | Database | PostgreSQL | Stores records, their history, and uploaded policy text |
 | AI | Azure OpenAI | Writes descriptions and mitigation plans, and finds risks in emails |
 | Knowledge search | TF-IDF + FAISS | Finds similar past banking risks and relevant policy passages for the AI |
@@ -88,18 +92,47 @@ Record status: **Open -> In Progress -> Pending Review -> Closed**
 - **No shortcuts:** the website only talks to the backend, so the rules can't be bypassed.
 - **Secrets stay safe:** keys and passwords are in settings, never in the code or on GitHub.
 
+## Deployment: One Container on Azure App Service
+
+```mermaid
+flowchart LR
+    B["🌐 Browser"] -->|"https://app-name.azurewebsites.net"| C
+    subgraph C["Docker container (Azure Web App)"]
+        F["FastAPI"]
+        R["/ and page paths -> React app<br/>(index.html, /assets)"]
+        A["/api/... -> API routes"]
+        F --> R
+        F --> A
+    end
+    A --> PG[("Azure PostgreSQL")]
+    A --> OAI["Azure OpenAI"]
+```
+
+- **Build:** the Dockerfile has two stages. Stage 1 (`node:22-slim`) builds the React app.
+  Stage 2 (`python:3.12-slim`) is the backend image (pinned packages, non-root `appuser`)
+  with the built `frontend/dist` copied in.
+- **Routing:** API routes are served under `/api` (and still at the root, for the
+  load test, evaluation and existing tools). `/assets/...` and other real files are served
+  from the build. Any other path returns `index.html`. Unknown `/api/...` paths stay JSON 404s.
+- **Same origin:** the website calls `/api` on its own URL, so `VITE_API_URL` and CORS
+  settings are not needed in production. `VITE_API_URL` still works as an override.
+- **Local development:** the Vite dev server forwards `/api` to the backend on port 8000.
+  If `frontend/dist` has not been built, the backend serves the API only.
+- **Why not Static Web Apps:** it is blocked by the sandbox policy, so its deploy job in
+  `cd.yml` is disabled (`if: false`).
+
 ## Deployment Status (Day 34)
 
 | Part | Status |
 |------|--------|
 | AI on Azure OpenAI | Done |
-| Backend packaged in Docker | Done |
+| Website and backend packaged in one Docker container | Done (tested locally: website, API and AI features) |
 | Database on Azure PostgreSQL | In progress |
-| Website and backend hosted on Azure | In progress (pipeline ready, Azure resources to be created) |
-| Automatic testing and deployment (CI/CD) | Done (GitHub Actions: tests, Docker image to GHCR, Azure deploy steps) |
+| Hosted on Azure App Service (one URL) | In progress (pipeline ready, deploys when the Azure settings are added) |
+| Automatic testing and deployment (CI/CD) | Done (GitHub Actions: tests, full-app Docker smoke test, image to GHCR, Azure Web App deploy) |
 
 ## Deployment Notes
 
-- Run the backend App Service with **one instance**. The policy search index is kept in memory, so extra instances would not see newly uploaded policies until they restart.
+- Run the App Service with **one instance**. The policy search index is kept in memory, so extra instances would not see newly uploaded policies until they restart.
 - Tables are created on start-up (`create_all`). It adds new tables but does not change existing ones, so a column change needs a manual SQL change or a migration tool such as Alembic.
 - Roles come from the `X-Role` header and are not authenticated. Put the app behind Azure sign-in or IP restrictions before sharing the URL.

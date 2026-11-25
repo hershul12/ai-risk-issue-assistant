@@ -3,12 +3,13 @@ from app.middleware import logger, register_middleware
 from collections import Counter
 from typing import Optional
 
-from fastapi import Depends, FastAPI, File, Header, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, FastAPI, File, Header, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
 from app import models, schemas
 from app.database import Base, SessionLocal, engine, get_db
+from app.frontend import FRONTEND_DIST, register_frontend
 from app.models import utcnow
 from app.scoring import calculate_score, get_priority, is_overdue
 from app.seed import seed_if_empty
@@ -25,6 +26,9 @@ with SessionLocal() as _db:
 
 app = FastAPI(title="RiskPilot: Project Risk & Issue Triage and Mitigation")
 register_middleware(app)
+# All API routes live on this router. It is mounted twice at the bottom of this file:
+# at the root (as before) and under /api (used by the bundled React app).
+router = APIRouter()
 ALLOWED_ORIGINS = [
     origin.strip().rstrip("/")
     for origin in os.getenv(
@@ -39,6 +43,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+API_PREFIX = "/api"
 
 OUT_OF_SCOPE_MESSAGE = (
     "This does not look like a banking programme risk or issue. "
@@ -97,12 +103,12 @@ def to_out(item: models.Item) -> schemas.ItemOut:
     return out
 
 
-@app.get("/health")
+@router.get("/health")
 def health():
     return {"status": "ok"}
 
 
-@app.post("/items", response_model=schemas.ItemOut, status_code=201)
+@router.post("/items", response_model=schemas.ItemOut, status_code=201)
 def create_item(
     data: schemas.ItemCreate,
     db: Session = Depends(get_db),
@@ -126,7 +132,7 @@ def create_item(
     return to_out(item)
 
 
-@app.get("/items", response_model=list[schemas.ItemOut])
+@router.get("/items", response_model=list[schemas.ItemOut])
 def list_items(
     status: Optional[str] = None,
     priority: Optional[str] = None,
@@ -151,12 +157,12 @@ def list_items(
     return result
 
 
-@app.get("/items/{item_id}", response_model=schemas.ItemOut)
+@router.get("/items/{item_id}", response_model=schemas.ItemOut)
 def get_item(item_id: int, db: Session = Depends(get_db)):
     return to_out(get_item_or_404(db, item_id))
 
 
-@app.put("/items/{item_id}", response_model=schemas.ItemOut)
+@router.put("/items/{item_id}", response_model=schemas.ItemOut)
 def update_item(
     item_id: int,
     data: schemas.ItemUpdate,
@@ -188,7 +194,7 @@ def update_item(
     return to_out(item)
 
 
-@app.patch("/items/{item_id}/status", response_model=schemas.ItemOut)
+@router.patch("/items/{item_id}/status", response_model=schemas.ItemOut)
 def change_status(
     item_id: int,
     data: schemas.StatusChange,
@@ -222,7 +228,7 @@ def change_status(
     return to_out(item)
 
 
-@app.get("/items/{item_id}/audit")
+@router.get("/items/{item_id}/audit")
 def get_audit(item_id: int, db: Session = Depends(get_db)):
     get_item_or_404(db, item_id)
     logs = (
@@ -242,7 +248,7 @@ def get_audit(item_id: int, db: Session = Depends(get_db)):
     ]
 
 
-@app.get("/dashboard/summary")
+@router.get("/dashboard/summary")
 def dashboard_summary(db: Session = Depends(get_db)):
     items = db.query(models.Item).all()
     open_items = [i for i in items if i.status != "Closed"]
@@ -256,7 +262,7 @@ def dashboard_summary(db: Session = Depends(get_db)):
     }
 
 
-@app.post("/suggest")
+@router.post("/suggest")
 def suggest(data: schemas.SuggestRequest, db: Session = Depends(get_db)):
     # Check scope first, from the user's text only, so nothing is retrieved or sent
     # to the model for text that is not a banking programme risk or issue.
@@ -309,7 +315,7 @@ def suggest(data: schemas.SuggestRequest, db: Session = Depends(get_db)):
     }
 
 
-@app.get("/policies")
+@router.get("/policies")
 def list_policies(db: Session = Depends(get_db)):
     docs = db.query(models.PolicyDocument).order_by(models.PolicyDocument.uploaded_at.desc()).all()
     return [
@@ -325,7 +331,7 @@ def list_policies(db: Session = Depends(get_db)):
     ]
 
 
-@app.post("/policies", status_code=201)
+@router.post("/policies", status_code=201)
 def upload_policy(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
@@ -363,7 +369,7 @@ def upload_policy(
     return {"id": doc.id, "name": name, "pages": pages, "passages": len(passages)}
 
 
-@app.delete("/policies/{doc_id}")
+@router.delete("/policies/{doc_id}")
 def delete_policy(
     doc_id: int,
     db: Session = Depends(get_db),
@@ -382,7 +388,7 @@ def delete_policy(
     return {"deleted": True}
 
 
-@app.post("/extract")
+@router.post("/extract")
 def extract(data: schemas.ExtractRequest):
     try:
         items = extract_items(data.text)
@@ -395,10 +401,18 @@ def extract(data: schemas.ExtractRequest):
     }
 
 
-@app.post("/similar")
+@router.post("/similar")
 def similar(data: schemas.SuggestRequest):
     try:
         return search_similar(data.description)
     except Exception:
         logger.exception("Similar-risk search failed")
         raise HTTPException(status_code=500, detail="Similar-risk search failed. Please try again.")
+
+
+# Same routes twice: at the root (unchanged) and under /api (same origin as the React app).
+app.include_router(router)
+app.include_router(router, prefix=API_PREFIX)
+# Serve the built React app last, so API routes always win. Skipped if frontend/dist
+# has not been built (local development with the Vite dev server, and tests).
+register_frontend(app, FRONTEND_DIST, api_prefix=API_PREFIX)
